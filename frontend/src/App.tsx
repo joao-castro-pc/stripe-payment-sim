@@ -102,6 +102,13 @@ export default function App() {
   const { data: orders, isPending, isError, error } = useQuery({
     queryKey: ['orders'],
     queryFn: listOrders,
+    // Poll every 2s ONLY while some order is still Pending (waiting for its
+    // webhook). Once everything is Paid, stop polling. This is what makes an
+    // order flip to Paid on screen without a manual refresh.
+    refetchInterval: (query) => {
+      const hasPending = query.state.data?.some((o) => o.status === OrderStatus.Pending)
+      return hasPending ? 2000 : false
+    },
   })
 
   return (
