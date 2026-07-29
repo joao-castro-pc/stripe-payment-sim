@@ -37,6 +37,9 @@ function CheckoutForm() {
   const queryClient = useQueryClient()
   const [euros, setEuros] = useState('19.99')
   const [focused, setFocused] = useState(false)
+  // Track the card field's state so we don't create an order for an incomplete card.
+  const [cardComplete, setCardComplete] = useState(false)
+  const [cardError, setCardError] = useState<string | null>(null)
 
   const pay = useMutation({
     mutationFn: async () => {
@@ -77,12 +80,20 @@ function CheckoutForm() {
           options={cardStyle}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
+          onChange={(e) => {
+            setCardComplete(e.complete)
+            setCardError(e.error?.message ?? null)
+          }}
         />
       </div>
+      {cardError && <p className="mt-2 text-sm text-red-600">{cardError}</p>}
 
       <button
         onClick={() => pay.mutate()}
-        disabled={!stripe || pay.isPending}
+        // Only enabled once the card is complete: no order is created for an
+        // incomplete/invalid card (the order+PaymentIntent are created before
+        // the card is confirmed, so we gate on completeness here).
+        disabled={!stripe || pay.isPending || !cardComplete}
         className="mt-4 w-full rounded-lg bg-indigo-600 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pay.isPending ? 'Processing…' : 'Pay'}
