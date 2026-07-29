@@ -79,3 +79,8 @@ if (app.Environment.IsDevelopment())
     app.MapDevEndpoints();
 
 app.Run();
+
+// Program uses top-level statements, which compile into an internal Program class.
+// WebApplicationFactory<Program> (in the test project) needs it public to boot the
+// app in-memory. This one line exposes it — no behaviour change.
+public partial class Program { }

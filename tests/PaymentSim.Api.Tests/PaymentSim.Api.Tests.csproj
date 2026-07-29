@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- This is a test project, not a shippable package. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- xUnit: the test framework. Test.Sdk + runner make `dotnet test` discover
+         and run them. coverlet collects coverage (optional, handy later). -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+
+    <!-- Spins up the whole API in-memory for integration tests. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.*" />
+    <!-- In-memory SQLite for tests (same provider as prod, no file on disk). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference the API project so we can boot it and see its types. -->
+    <ProjectReference Include="..\..\backend\PaymentSim.Api.csproj" />
+  </ItemGroup>
+
+</Project>
