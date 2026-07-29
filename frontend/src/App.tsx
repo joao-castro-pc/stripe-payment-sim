@@ -10,14 +10,25 @@ function formatMoney(cents: number, currency: string) {
 function StatusBadge({ status }: { status: number }) {
   const paid = status === OrderStatus.Paid
   return (
-    <span style={{
-      padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600,
-      color: paid ? '#065f46' : '#92400e',
-      background: paid ? '#d1fae5' : '#fef3c7',
-    }}>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+      paid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+    }`}>
       {paid ? 'Paid' : 'Pending'}
     </span>
   )
+}
+
+// Stripe's card iframe can't be styled with CSS/Tailwind — only via this API.
+const cardStyle = {
+  style: {
+    base: {
+      fontSize: '16px',
+      color: '#1f2937',
+      fontFamily: 'system-ui, sans-serif',
+      '::placeholder': { color: '#9ca3af' },
+    },
+    invalid: { color: '#dc2626' },
+  },
 }
 
 function CheckoutForm() {
@@ -25,6 +36,7 @@ function CheckoutForm() {
   const elements = useElements()
   const queryClient = useQueryClient()
   const [euros, setEuros] = useState('19.99')
+  const [focused, setFocused] = useState(false)
 
   const pay = useMutation({
     mutationFn: async () => {
@@ -32,55 +44,57 @@ function CheckoutForm() {
       const card = elements.getElement(CardElement)
       if (!card) throw new Error('Card field not ready')
 
-      // 1. Ask our backend to create the order + PaymentIntent.
       const amountCents = Math.round(parseFloat(euros) * 100)
       const { clientSecret } = await createOrder(amountCents, 'eur')
 
-      // 2. Confirm the card with Stripe directly (card data never touches our server).
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card },
       })
       if (result.error) throw new Error(result.error.message ?? 'Payment failed')
       return result.paymentIntent
     },
-    onSuccess: () => {
-      // Payment done. The order flips to Paid via webhook — refetch the list.
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
   })
 
   return (
-    <section style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 24 }}>
-      <h2 style={{ marginTop: 0 }}>Checkout</h2>
-      <label style={{ display: 'block', marginBottom: 8 }}>
-        Amount (EUR):{' '}
+    <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-4 text-center text-lg font-semibold text-gray-900">Checkout</h2>
+
+      <label className="mb-4 block">
+        <span className="mb-1.5 block text-sm font-medium text-gray-500">Amount (EUR)</span>
         <input
           type="number" step="0.01" min="0.50" value={euros}
           onChange={(e) => setEuros(e.target.value)}
-          style={{ width: 100 }}
+          className="w-36 rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
         />
       </label>
 
-      {/* Stripe's hosted card field — we never see the raw card number. */}
-      <div style={{ border: '1px solid #ccc', borderRadius: 6, padding: 10, marginBottom: 12 }}>
-        <CardElement />
+      <label className="mb-1.5 block text-sm font-medium text-gray-500">Card details</label>
+      <div className={`rounded-lg border bg-white px-3.5 py-3 transition ${
+        focused ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-300'
+      }`}>
+        <CardElement
+          options={cardStyle}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
       </div>
 
       <button
         onClick={() => pay.mutate()}
         disabled={!stripe || pay.isPending}
-        style={{ padding: '8px 16px', cursor: 'pointer' }}
+        className="mt-4 w-full rounded-lg bg-indigo-600 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pay.isPending ? 'Processing…' : 'Pay'}
       </button>
 
-      {pay.isError && <p style={{ color: 'crimson' }}>{(pay.error as Error).message}</p>}
-      {pay.isSuccess && <p style={{ color: '#065f46' }}>Payment succeeded! The order will show as Paid.</p>}
+      {pay.isError && <p className="mt-3 text-sm text-red-600">{(pay.error as Error).message}</p>}
+      {pay.isSuccess && <p className="mt-3 text-sm text-emerald-700">Payment succeeded! The order will show as Paid.</p>}
 
-      <p style={{ fontSize: 12, color: '#666', marginBottom: 0 }}>
-        Test card: <code>4242 4242 4242 4242</code>, any future date, any CVC.
+      <p className="mt-3 text-xs text-gray-400">
+        Test card <code className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">4242 4242 4242 4242</code>, any future date, any CVC.
       </p>
-    </section>
+    </div>
   )
 }
 
@@ -91,32 +105,36 @@ export default function App() {
   })
 
   return (
-    <main style={{ fontFamily: 'system-ui', maxWidth: 640, margin: '40px auto', padding: '0 16px' }}>
-      <h1>PaymentSim</h1>
+    <main className="mx-auto max-w-xl px-4 py-12">
+      <h1 className="mb-8 text-center text-3xl font-bold text-gray-900">PaymentSim</h1>
 
       <CheckoutForm />
 
-      <h2>Orders</h2>
-      {isPending && <p>Loading…</p>}
-      {isError && <p style={{ color: 'crimson' }}>Error: {(error as Error).message}</p>}
-      {orders && orders.length === 0 && <p>No orders yet.</p>}
+      <h2 className="mb-3 text-lg font-semibold text-gray-900">Orders</h2>
+      {isPending && <p className="text-gray-500">Loading…</p>}
+      {isError && <p className="text-red-600">Error: {(error as Error).message}</p>}
+      {orders && orders.length === 0 && <p className="text-gray-500">No orders yet.</p>}
       {orders && orders.length > 0 && (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
-              <th>Amount</th><th>Status</th><th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((o: Order) => (
-              <tr key={o.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                <td>{formatMoney(o.amountCents, o.currency)}</td>
-                <td><StatusBadge status={o.status} /></td>
-                <td>{new Date(o.createdAt).toLocaleString()}</td>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
+                <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Created</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {orders.map((o: Order) => (
+                <tr key={o.id} className="border-b border-gray-100 last:border-0">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatMoney(o.amountCents, o.currency)}</td>
+                  <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
+                  <td className="px-4 py-3 text-sm text-gray-500">{new Date(o.createdAt).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </main>
   )
