@@ -19,7 +19,19 @@ builder.Services.AddSwaggerGen(options =>
     options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFile));
 });
 
+// CORS: the frontend (http://localhost:5173) is a different origin from this API
+// (http://localhost:5144). Browsers block cross-origin calls unless the server
+// opts in. This policy lets our dev frontend call the API. (Webhooks are
+// server-to-server and don't involve CORS.)
+builder.Services.AddCors(options =>
+    options.AddPolicy("frontend", policy =>
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()));
+
 var app = builder.Build();
+
+app.UseCors("frontend");
 
 // Serve Swagger UI at /swagger while developing.
 if (app.Environment.IsDevelopment())
@@ -143,6 +155,7 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
         // 3. Recompute the signature from (json + secret) and compare. Throws if
         //    it doesn't match — i.e. the payload was forged or tampered with.
         stripeEvent = EventUtility.ConstructEvent(json, signature, webhookSecret);
+        app.Logger.LogInformation("Received Stripe event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
     }
     catch (StripeException)
     {
