@@ -12,6 +12,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Stop `dotnet watch` from reacting to SQLite file writes (*.db / -wal / -shm).
+         Every DB write touched these and restarted the server, dropping the SSE stream. -->
+    <Watch Remove="**\*.db" />
+    <Watch Remove="**\*.db-shm" />
+    <Watch Remove="**\*.db-wal" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.*" />
     <PackageReference Include="Stripe.net" Version="52.1.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />

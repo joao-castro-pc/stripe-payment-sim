@@ -111,9 +111,11 @@ export default function App() {
   // message (an order became Paid), invalidate the query so it refetches once.
   useEffect(() => {
     const source = new EventSource(`${API_BASE}/orders/stream`)
-    source.onmessage = () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
-    }
+    const refresh = () => queryClient.invalidateQueries({ queryKey: ['orders'] })
+    // On every (re)connect, refetch — catches up on any change we missed while
+    // the connection was down (e.g. a backend restart). EventSource auto-reconnects.
+    source.onopen = refresh
+    source.onmessage = refresh
     // Close the connection when the component unmounts (avoids leaks).
     return () => source.close()
   }, [queryClient])
