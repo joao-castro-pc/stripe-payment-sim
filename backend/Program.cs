@@ -120,7 +120,7 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
 // Receive webhooks from Stripe. This is where we learn about payments.
 // CRITICAL: we must verify the signature, or anyone could POST a fake
 // "payment succeeded" here and get free goods.
-app.MapPost("/webhook", async (HttpRequest request) =>
+app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
 {
     // 1. Read the RAW body as text. We must NOT let the framework parse it into
     //    an object first: the signature is computed over the exact bytes Stripe
@@ -150,9 +150,29 @@ app.MapPost("/webhook", async (HttpRequest request) =>
         return Results.BadRequest(new { error = "Invalid signature" });
     }
 
-    // 4. Verified. For now just acknowledge; Steps 6-7 add idempotency + order update.
-    app.Logger.LogInformation("Verified Stripe event: {Type} ({Id})",
-        stripeEvent.Type, stripeEvent.Id);
+    // 4. Idempotency fast path: if we've already recorded this event id, do nothing.
+    //    Stripe delivers "at least once", so redeliveries WILL happen.
+    if (await db.ProcessedEvents.AnyAsync(e => e.Id == stripeEvent.Id))
+    {
+        app.Logger.LogInformation("Duplicate event ignored: {Id}", stripeEvent.Id);
+        return Results.Ok();
+    }
+
+    // 5. First time we see it -> do the real work. (Step 7 updates the order here.)
+    app.Logger.LogInformation("Processing event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
+
+    // 6. Record it as processed. The primary key on Id is the REAL guard: if two
+    //    duplicate deliveries race past the check above, the second insert fails.
+    db.ProcessedEvents.Add(new ProcessedEvent { Id = stripeEvent.Id });
+    try
+    {
+        await db.SaveChangesAsync();
+    }
+    catch (DbUpdateException)
+    {
+        // Another concurrent delivery inserted the same id first -> it's a duplicate.
+        app.Logger.LogInformation("Duplicate event race ignored: {Id}", stripeEvent.Id);
+    }
 
     // Always answer 2xx once handled, or Stripe keeps retrying.
     return Results.Ok();

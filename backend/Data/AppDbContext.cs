@@ -12,6 +12,9 @@ public class AppDbContext : DbContext
     // The "Orders" table.
     public DbSet<Order> Orders => Set<Order>();
 
+    // Ids of Stripe events we've already processed (idempotency ledger).
+    public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Store the enum as readable text ("Pending"/"Paid") in the DB column

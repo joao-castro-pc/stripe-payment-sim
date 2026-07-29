@@ -51,7 +51,7 @@ Built step by step — one feature per commit. See the git history.
 - [x] 3. Order model + EF Core (SQLite)
 - [x] 4. Create checkout (PaymentIntent)
 - [x] 5. Webhook endpoint + signature verification
-- [ ] 6. Idempotency on event id
+- [x] 6. Idempotency on event id
 - [ ] 7. Order transitions to "paid"
 - [ ] 8. Frontend checkout button
 - [ ] 9. UI reflects order status
