@@ -21,6 +21,11 @@ public class Order
 
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
+    // The Stripe PaymentIntent this order is paying through (e.g. "pi_3Nx...").
+    // Set when we create the checkout; it's how we match an incoming webhook
+    // back to our order. Null until the PaymentIntent is created.
+    public string? StripePaymentIntentId { get; set; }
+
     // Stored as UTC. We use DateTime (not DateTimeOffset) because SQLite can't
     // translate ORDER BY over DateTimeOffset into SQL. Always store UTC and
     // convert to the user's local time in the UI.
