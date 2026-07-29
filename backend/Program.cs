@@ -47,6 +47,12 @@ var app = builder.Build();
 
 app.UseCors("frontend");
 
+// Named loggers so each log line says which part of the system it came from
+// (shows as e.g. "info: Checkout[0] ..." instead of "PaymentSim.Api[0] ...").
+var checkoutLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Checkout");
+var webhookLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Webhook");
+var devLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Dev");
+
 // Serve Swagger UI at /swagger while developing.
 if (app.Environment.IsDevelopment())
 {
@@ -119,7 +125,7 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
 {
     if (string.IsNullOrEmpty(StripeConfiguration.ApiKey))
     {
-        app.Logger.LogError("💥 Checkout attempted but Stripe:SecretKey is not configured");
+        checkoutLog.LogError("💥 Checkout attempted but Stripe:SecretKey is not configured");
         return Results.Problem("Stripe secret key not configured. Set Stripe:SecretKey via user-secrets.");
     }
 
@@ -127,11 +133,11 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
     // obviously the caller's mistake, so fail fast with 400.
     if (req.AmountCents <= 0)
     {
-        app.Logger.LogWarning("⚠️ Rejected checkout with invalid amount {Amount}", req.AmountCents);
+        checkoutLog.LogWarning("⚠️ Rejected checkout with invalid amount {Amount}", req.AmountCents);
         return Results.BadRequest(new { error = "amountCents must be a positive integer (cents)." });
     }
 
-    app.Logger.LogInformation("🛒 Checkout requested: {Amount} {Currency}", req.AmountCents, req.Currency);
+    checkoutLog.LogInformation("🛒 Checkout requested: {Amount} {Currency}", req.AmountCents, req.Currency);
 
     // 1. Build the order object (not saved yet — we only persist if Stripe succeeds).
     var order = new Order { AmountCents = req.AmountCents, Currency = req.Currency };
@@ -154,7 +160,7 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
         // Stripe rejected the request (e.g. amount below the currency minimum,
         // unknown currency). That's the caller's fault -> 400 with a clean message,
         // never the raw exception/stack trace.
-        app.Logger.LogWarning("⚠️ Stripe rejected checkout: {Message}", ex.StripeError?.Message ?? ex.Message);
+        checkoutLog.LogWarning("⚠️ Stripe rejected checkout: {Message}", ex.StripeError?.Message ?? ex.Message);
         return Results.BadRequest(new { error = ex.StripeError?.Message ?? ex.Message });
     }
 
@@ -163,7 +169,7 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
     db.Orders.Add(order);
     await db.SaveChangesAsync();
 
-    app.Logger.LogInformation("🧾 Order {Order} created ({Amount} {Currency}), PaymentIntent {Pi}",
+    checkoutLog.LogInformation("🧾 Order {Order} created ({Amount} {Currency}), PaymentIntent {Pi}",
         order.Id, order.AmountCents, order.Currency, intent.Id);
 
     // 4. Hand the clientSecret to the frontend so Stripe.js can confirm the payment.
@@ -211,7 +217,7 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifi
         // 3. Recompute the signature from (json + secret) and compare. Throws if
         //    it doesn't match — i.e. the payload was forged or tampered with.
         stripeEvent = EventUtility.ConstructEvent(json, signature, webhookSecret);
-        app.Logger.LogInformation("📨 Received Stripe event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
+        webhookLog.LogInformation("📨 Received Stripe event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
     }
     catch (StripeException)
     {
@@ -223,7 +229,7 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifi
     //    Stripe delivers "at least once", so redeliveries WILL happen.
     if (await db.ProcessedEvents.AnyAsync(e => e.Id == stripeEvent.Id))
     {
-        app.Logger.LogInformation("🔁 Duplicate event ignored: {Id}", stripeEvent.Id);
+        webhookLog.LogInformation("🔁 Duplicate event ignored: {Id}", stripeEvent.Id);
         return Results.Ok();
     }
 
@@ -243,13 +249,13 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifi
         {
             // Happens for events not tied to one of our orders (e.g. `stripe trigger`
             // creates its own PaymentIntent). Nothing to update.
-            app.Logger.LogWarning("⚠️ No order matches PaymentIntent {Pi}", paymentIntent.Id);
+            webhookLog.LogWarning("⚠️ No order matches PaymentIntent {Pi}", paymentIntent.Id);
         }
         else
         {
             order.Status = OrderStatus.Paid;
             orderMarkedPaid = true;
-            app.Logger.LogInformation("✅ Order {Order} -> Paid (PaymentIntent {Pi})",
+            webhookLog.LogInformation("✅ Order {Order} -> Paid (PaymentIntent {Pi})",
                 order.Id, paymentIntent.Id);
         }
     }
@@ -268,13 +274,13 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifi
         if (orderMarkedPaid)
         {
             notifier.Notify("orders-changed");
-            app.Logger.LogInformation("📢 Notified SSE clients of order change");
+            webhookLog.LogInformation("📢 Notified SSE clients of order change");
         }
     }
     catch (DbUpdateException)
     {
         // Another concurrent delivery inserted the same id first -> it's a duplicate.
-        app.Logger.LogInformation("🔁 Duplicate event race ignored (PK conflict): {Id}", stripeEvent.Id);
+        webhookLog.LogInformation("🔁 Duplicate event race ignored (PK conflict): {Id}", stripeEvent.Id);
     }
 
     // Always answer 2xx once handled, or Stripe keeps retrying.
@@ -304,7 +310,7 @@ if (app.Environment.IsDevelopment())
         var ip = http.Connection.RemoteIpAddress;
         if (ip is null || !IPAddress.IsLoopback(ip))
         {
-            app.Logger.LogWarning("🚫 /dev/reset blocked for non-local caller {Ip}", ip);
+            devLog.LogWarning("🚫 /dev/reset blocked for non-local caller {Ip}", ip);
             return Results.NotFound();
         }
 
@@ -317,7 +323,7 @@ if (app.Environment.IsDevelopment())
         var orders = await db.Orders.ExecuteDeleteAsync();
         var events = await db.ProcessedEvents.ExecuteDeleteAsync();
         notifier.Notify("orders-changed"); // push so the UI clears immediately
-        app.Logger.LogWarning("🧹 DB reset: deleted {Orders} orders, {Events} processed events", orders, events);
+        devLog.LogWarning("🧹 DB reset: deleted {Orders} orders, {Events} processed events", orders, events);
         return Results.Ok(new { deletedOrders = orders, deletedEvents = events });
     })
     .WithTags("Dev")
