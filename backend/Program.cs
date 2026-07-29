@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.EntityFrameworkCore;
 using PaymentSim.Api;
 using PaymentSim.Api.Data;
@@ -294,8 +295,19 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifi
 // clean slate while testing. Only mapped in Development, so it can't ship to prod.
 if (app.Environment.IsDevelopment())
 {
-    app.MapPost("/dev/reset", async (AppDbContext db, OrderNotifier notifier) =>
+    app.MapPost("/dev/reset", async (HttpContext http, AppDbContext db, OrderNotifier notifier) =>
     {
+        // Second guard: only from the local machine (loopback: 127.0.0.1 / ::1).
+        // Env alone isn't enough — a staging box might run as Development and be
+        // reachable remotely. We check the real socket peer IP (not a spoofable
+        // header like X-Forwarded-For), so a remote caller can never reach this.
+        var ip = http.Connection.RemoteIpAddress;
+        if (ip is null || !IPAddress.IsLoopback(ip))
+        {
+            app.Logger.LogWarning("🚫 /dev/reset blocked for non-local caller {Ip}", ip);
+            return Results.NotFound();
+        }
+
         // ExecuteDeleteAsync runs a single DELETE in the DB (no loading rows first).
         var orders = await db.Orders.ExecuteDeleteAsync();
         var events = await db.ProcessedEvents.ExecuteDeleteAsync();
