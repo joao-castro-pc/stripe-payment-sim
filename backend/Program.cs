@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PaymentSim.Api;
 using PaymentSim.Api.Data;
 using PaymentSim.Api.Endpoints;
+using PaymentSim.Api.Payments;
 using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +21,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Singleton: one shared notifier for the whole app (holds the SSE subscribers).
 builder.Services.AddSingleton<OrderNotifier>();
+
+// The payment gateway. Endpoints depend on IPaymentGateway; DI hands them the
+// real Stripe implementation here. Tests register a fake instead.
+builder.Services.AddScoped<IPaymentGateway, StripePaymentGateway>();
 
 // Swagger: an in-browser UI to explore and call the API by hand (dev only).
 builder.Services.AddEndpointsApiExplorer();

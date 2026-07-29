@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using PaymentSim.Api.Data;
 using PaymentSim.Api.Models;
+using PaymentSim.Api.Payments;
 using Stripe;
 
 namespace PaymentSim.Api.Endpoints;
@@ -52,7 +53,7 @@ public static class OrderEndpoints
 
         // Start a checkout: create our order (Pending) AND a Stripe PaymentIntent.
         // Returns the clientSecret the frontend needs to confirm the card payment.
-        app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
+        app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db, IPaymentGateway payments) =>
         {
             if (string.IsNullOrEmpty(StripeConfiguration.ApiKey))
             {
@@ -73,29 +74,24 @@ public static class OrderEndpoints
             // 1. Build the order object (not saved yet — we only persist if Stripe succeeds).
             var order = new Order { AmountCents = req.AmountCents, Currency = req.Currency };
 
-            // 2. Create the matching PaymentIntent on Stripe (test mode).
-            //    Metadata carries our order id so we can find the order from a webhook.
-            PaymentIntent intent;
+            // 2. Create the matching PaymentIntent via the gateway (Stripe, in prod).
+            //    The gateway hides Stripe.net behind IPaymentGateway (see Payments/).
+            PaymentIntentResult intent;
             try
             {
-                intent = await new PaymentIntentService().CreateAsync(new PaymentIntentCreateOptions
-                {
-                    Amount = req.AmountCents,
-                    Currency = req.Currency,
-                    PaymentMethodTypes = ["card"],
-                    Metadata = new Dictionary<string, string> { ["order_id"] = order.Id.ToString() }
-                });
+                intent = await payments.CreatePaymentIntentAsync(
+                    req.AmountCents, req.Currency, order.Id.ToString());
             }
-            catch (StripeException ex)
+            catch (PaymentGatewayException ex)
             {
-                // Stripe rejected the request (e.g. amount below the currency minimum,
+                // Provider rejected the request (e.g. amount below the currency minimum,
                 // unknown currency). That's the caller's fault -> 400 with a clean message,
                 // never the raw exception/stack trace.
-                checkoutLog.LogWarning("⚠️ Stripe rejected checkout: {Message}", ex.StripeError?.Message ?? ex.Message);
-                return Results.BadRequest(new { error = ex.StripeError?.Message ?? ex.Message });
+                checkoutLog.LogWarning("⚠️ Payment provider rejected checkout: {Message}", ex.Message);
+                return Results.BadRequest(new { error = ex.Message });
             }
 
-            // 3. Stripe accepted it: now persist the order with its PaymentIntent id.
+            // 3. Provider accepted it: now persist the order with its PaymentIntent id.
             order.StripePaymentIntentId = intent.Id;
             db.Orders.Add(order);
             await db.SaveChangesAsync();
