@@ -226,8 +226,8 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifi
         return Results.Ok();
     }
 
-    // 5. First time we see it -> do the real work.
-    app.Logger.LogInformation("⚙️ Processing event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
+    // 5. First time we see it -> do the real work. (The 📨 log above already
+    //    recorded arrival; the outcome logs below say what we did.)
 
     // 5a. We only care about successful payments here. Find the matching order
     //     (linked by PaymentIntent id in Step 4) and flip it to Paid.
