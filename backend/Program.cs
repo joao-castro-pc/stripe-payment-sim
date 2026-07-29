@@ -74,12 +74,20 @@ app.MapGet("/orders", async (AppDbContext db) =>
 app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
 {
     if (string.IsNullOrEmpty(StripeConfiguration.ApiKey))
+    {
+        app.Logger.LogError("💥 Checkout attempted but Stripe:SecretKey is not configured");
         return Results.Problem("Stripe secret key not configured. Set Stripe:SecretKey via user-secrets.");
+    }
 
     // Cheap sanity check before calling Stripe: a non-positive amount is
     // obviously the caller's mistake, so fail fast with 400.
     if (req.AmountCents <= 0)
+    {
+        app.Logger.LogWarning("⚠️ Rejected checkout with invalid amount {Amount}", req.AmountCents);
         return Results.BadRequest(new { error = "amountCents must be a positive integer (cents)." });
+    }
+
+    app.Logger.LogInformation("🛒 Checkout requested: {Amount} {Currency}", req.AmountCents, req.Currency);
 
     // 1. Build the order object (not saved yet — we only persist if Stripe succeeds).
     var order = new Order { AmountCents = req.AmountCents, Currency = req.Currency };
@@ -102,6 +110,7 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
         // Stripe rejected the request (e.g. amount below the currency minimum,
         // unknown currency). That's the caller's fault -> 400 with a clean message,
         // never the raw exception/stack trace.
+        app.Logger.LogWarning("⚠️ Stripe rejected checkout: {Message}", ex.StripeError?.Message ?? ex.Message);
         return Results.BadRequest(new { error = ex.StripeError?.Message ?? ex.Message });
     }
 
@@ -109,6 +118,9 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
     order.StripePaymentIntentId = intent.Id;
     db.Orders.Add(order);
     await db.SaveChangesAsync();
+
+    app.Logger.LogInformation("🧾 Order {Order} created ({Amount} {Currency}), PaymentIntent {Pi}",
+        order.Id, order.AmountCents, order.Currency, intent.Id);
 
     // 4. Hand the clientSecret to the frontend so Stripe.js can confirm the payment.
     return Results.Created($"/orders/{order.Id}", new
