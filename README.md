@@ -47,7 +47,7 @@ stripe-payment-sim/
 Built step by step — one feature per commit. See the git history.
 
 - [x] 1. Repo skeleton
-- [ ] 2. Backend health endpoint
+- [x] 2. Backend health endpoint
 - [ ] 3. Order model + EF Core (SQLite)
 - [ ] 4. Create checkout (PaymentIntent)
 - [ ] 5. Webhook endpoint + signature verification
