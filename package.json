@@ -7,7 +7,8 @@
     "dev": "concurrently -n api,web,stripe -c blue,green,magenta \"npm:dev:api\" \"npm:dev:web\" \"npm:dev:stripe\"",
     "dev:api": "kill-port 5144 && dotnet watch --non-interactive run --project backend",
     "dev:web": "kill-port 5173 && npm --prefix frontend run dev",
-    "dev:stripe": "stripe listen --forward-to localhost:5144/webhook"
+    "dev:stripe": "stripe listen --forward-to localhost:5144/webhook",
+    "test": "dotnet test tests/PaymentSim.Api.Tests"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
