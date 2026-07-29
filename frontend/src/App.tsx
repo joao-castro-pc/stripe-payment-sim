@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
-import { listOrders, createOrder, API_BASE, OrderStatus, type Order } from './api'
+import { toast } from 'sonner'
+import { listOrders, createOrder, deleteOrder, API_BASE, OrderStatus, type Order } from './api'
 
 function formatMoney(cents: number, currency: string) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100)
 }
 
 function StatusBadge({ status }: { status: number }) {
-  const paid = status === OrderStatus.Paid
+  const { label, classes } =
+    status === OrderStatus.Paid ? { label: 'Paid', classes: 'bg-emerald-100 text-emerald-800' }
+    : status === OrderStatus.Failed ? { label: 'Failed', classes: 'bg-red-100 text-red-800' }
+    : { label: 'Pending', classes: 'bg-amber-100 text-amber-800' }
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-      paid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-    }`}>
-      {paid ? 'Paid' : 'Pending'}
-    </span>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${classes}`}>{label}</span>
   )
 }
 
@@ -56,7 +56,11 @@ function CheckoutForm() {
       if (result.error) throw new Error(result.error.message ?? 'Payment failed')
       return result.paymentIntent
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      toast.success('Payment succeeded', { description: 'The order will show as Paid.' })
+    },
+    onError: (e) => toast.error('Payment failed', { description: (e as Error).message }),
   })
 
   return (
@@ -99,9 +103,6 @@ function CheckoutForm() {
         {pay.isPending ? 'Processing…' : 'Pay'}
       </button>
 
-      {pay.isError && <p className="mt-3 text-sm text-red-600">{(pay.error as Error).message}</p>}
-      {pay.isSuccess && <p className="mt-3 text-sm text-emerald-700">Payment succeeded! The order will show as Paid.</p>}
-
       <p className="mt-3 text-xs text-gray-400">
         Test card <code className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">4242 4242 4242 4242</code>, any future date, any CVC.
       </p>
@@ -116,6 +117,15 @@ export default function App() {
   const { data: orders, isPending, isError, error } = useQuery({
     queryKey: ['orders'],
     queryFn: listOrders,
+  })
+
+  const del = useMutation({
+    mutationFn: deleteOrder,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      toast.success('Order deleted')
+    },
+    onError: (e) => toast.error('Delete failed', { description: (e as Error).message }),
   })
 
   // Server push (leg B): open one SSE connection. When the backend pushes a
@@ -149,6 +159,7 @@ export default function App() {
                 <th className="px-4 py-3">Amount</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -157,6 +168,16 @@ export default function App() {
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatMoney(o.amountCents, o.currency)}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                   <td className="px-4 py-3 text-sm text-gray-500">{new Date(o.createdAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => del.mutate(o.id)}
+                      disabled={del.isPending}
+                      className="text-sm text-gray-400 transition hover:text-red-600 disabled:opacity-50"
+                      title="Delete order"
+                    >
+                      ✕
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

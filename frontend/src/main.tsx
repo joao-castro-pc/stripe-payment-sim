@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Elements } from '@stripe/react-stripe-js'
+import { Toaster } from 'sonner'
 import { stripePromise } from './stripe.ts'
 import './index.css'
 import App from './App.tsx'
@@ -16,6 +17,8 @@ createRoot(document.getElementById('root')!).render(
       {/* Elements loads Stripe.js and provides the card hooks/components below. */}
       <Elements stripe={stripePromise}>
         <App />
+        {/* Toast notifications for actions (payment, delete). */}
+        <Toaster richColors position="top-right" />
       </Elements>
     </QueryClientProvider>
   </StrictMode>,

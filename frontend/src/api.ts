@@ -13,7 +13,7 @@ export interface Order {
   createdAt: string;
 }
 
-export const OrderStatus = { Pending: 0, Paid: 1 } as const;
+export const OrderStatus = { Pending: 0, Paid: 1, Failed: 2 } as const;
 
 export async function listOrders(): Promise<Order[]> {
   const res = await fetch(`${API_BASE}/orders`);
@@ -27,6 +27,12 @@ export interface CreateOrderResponse {
   clientSecret: string;
   amountCents: number;
   currency: string;
+}
+
+// Delete one order. The backend requires ?confirm=true (guarded dev endpoint).
+export async function deleteOrder(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/orders/${id}?confirm=true`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`DELETE /orders/${id} failed: ${res.status}`);
 }
 
 export async function createOrder(
