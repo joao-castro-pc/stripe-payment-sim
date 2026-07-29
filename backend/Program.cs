@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using PaymentSim.Api;
 using PaymentSim.Api.Data;
 using PaymentSim.Api.Models;
 using Stripe;
@@ -7,6 +8,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=paymentsim.db"));
+
+// Singleton: one shared notifier for the whole app (holds the SSE subscribers).
+builder.Services.AddSingleton<OrderNotifier>();
 
 // Swagger: an in-browser UI to explore and call the API by hand (dev only).
 builder.Services.AddEndpointsApiExplorer();
@@ -68,6 +72,36 @@ app.MapGet("/orders", async (AppDbContext db) =>
     .WithSummary("List all orders")
     .WithDescription("Returns every order, newest first. Use it to see an order flip from Pending to Paid after a webhook.")
     .Produces<List<Order>>(StatusCodes.Status200OK);
+
+// Server-Sent Events: a long-lived connection the browser opens once. The
+// backend PUSHES a line whenever an order changes (leg B). This replaces
+// frontend polling — no repeated requests, near-instant updates.
+app.MapGet("/orders/stream", async (HttpContext ctx, OrderNotifier notifier, CancellationToken ct) =>
+{
+    ctx.Response.ContentType = "text/event-stream";
+    ctx.Response.Headers.CacheControl = "no-cache";
+    // Don't buffer: each message must reach the browser immediately.
+    ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature>()?.DisableBuffering();
+
+    var (id, reader) = notifier.Subscribe();
+    try
+    {
+        // Wait for messages and write each as an SSE "data:" frame.
+        await foreach (var message in reader.ReadAllAsync(ct))
+        {
+            await ctx.Response.WriteAsync($"data: {message}\n\n", ct);
+            await ctx.Response.Body.FlushAsync(ct);
+        }
+    }
+    catch (OperationCanceledException)
+    {
+        // Browser closed the tab / navigated away — expected. Nothing to do.
+    }
+    finally
+    {
+        notifier.Unsubscribe(id);
+    }
+}).ExcludeFromDescription();
 
 // Start a checkout: create our order (Pending) AND a Stripe PaymentIntent.
 // Returns the clientSecret the frontend needs to confirm the card payment.
@@ -144,7 +178,7 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
 // Receive webhooks from Stripe. This is where we learn about payments.
 // CRITICAL: we must verify the signature, or anyone could POST a fake
 // "payment succeeded" here and get free goods.
-app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
+app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifier notifier) =>
 {
     // 1. Read the RAW body as text. We must NOT let the framework parse it into
     //    an object first: the signature is computed over the exact bytes Stripe
@@ -188,6 +222,7 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
 
     // 5a. We only care about successful payments here. Find the matching order
     //     (linked by PaymentIntent id in Step 4) and flip it to Paid.
+    var orderMarkedPaid = false;
     if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded &&
         stripeEvent.Data.Object is PaymentIntent paymentIntent)
     {
@@ -203,6 +238,7 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
         else
         {
             order.Status = OrderStatus.Paid;
+            orderMarkedPaid = true;
             app.Logger.LogInformation("✅ Order {Order} -> Paid (PaymentIntent {Pi})",
                 order.Id, paymentIntent.Id);
         }
@@ -216,6 +252,14 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
     try
     {
         await db.SaveChangesAsync();
+
+        // Save succeeded -> tell connected browsers to refresh (leg B).
+        // Only after a real change, and only after the commit (never on rollback).
+        if (orderMarkedPaid)
+        {
+            notifier.Notify("orders-changed");
+            app.Logger.LogInformation("📢 Notified SSE clients of order change");
+        }
     }
     catch (DbUpdateException)
     {

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
-import { listOrders, createOrder, OrderStatus, type Order } from './api'
+import { listOrders, createOrder, API_BASE, OrderStatus, type Order } from './api'
 
 function formatMoney(cents: number, currency: string) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100)
@@ -99,17 +99,24 @@ function CheckoutForm() {
 }
 
 export default function App() {
+  const queryClient = useQueryClient()
+
+  // Initial load (and manual invalidations). No polling anymore.
   const { data: orders, isPending, isError, error } = useQuery({
     queryKey: ['orders'],
     queryFn: listOrders,
-    // Poll every 2s ONLY while some order is still Pending (waiting for its
-    // webhook). Once everything is Paid, stop polling. This is what makes an
-    // order flip to Paid on screen without a manual refresh.
-    refetchInterval: (query) => {
-      const hasPending = query.state.data?.some((o) => o.status === OrderStatus.Pending)
-      return hasPending ? 2000 : false
-    },
   })
+
+  // Server push (leg B): open one SSE connection. When the backend pushes a
+  // message (an order became Paid), invalidate the query so it refetches once.
+  useEffect(() => {
+    const source = new EventSource(`${API_BASE}/orders/stream`)
+    source.onmessage = () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+    }
+    // Close the connection when the component unmounts (avoids leaks).
+    return () => source.close()
+  }, [queryClient])
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
