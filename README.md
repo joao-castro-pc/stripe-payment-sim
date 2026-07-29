@@ -10,18 +10,6 @@ Learning project (talent pool) to master production-grade async payment patterns
 - **Backend:** .NET 9 Minimal API + EF Core (SQLite)
 - **Payments:** Stripe (test mode); local webhook forwarding via the Stripe CLI
 
-## The two mistakes this project is about
-
-Most people who wire up Stripe webhooks in a hurry make one (or both) of these:
-
-1. **Not verifying the signature** — they trust any POST to `/webhook`. Anyone who
-   knows the URL can then fake a "payment succeeded" and get free goods.
-2. **Not handling duplicate deliveries** — Stripe retries a webhook until you answer
-   `2xx`. If your handler isn't *idempotent*, the same payment gets processed twice
-   (double-shipped order, double credit, etc.).
-
-The whole point of the project is to do both correctly.
-
 ## High-level flow
 
 ```
