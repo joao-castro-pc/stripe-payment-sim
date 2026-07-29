@@ -64,22 +64,38 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
     if (string.IsNullOrEmpty(StripeConfiguration.ApiKey))
         return Results.Problem("Stripe secret key not configured. Set Stripe:SecretKey via user-secrets.");
 
-    // 1. Create the order in our DB, still Pending.
+    // Cheap sanity check before calling Stripe: a non-positive amount is
+    // obviously the caller's mistake, so fail fast with 400.
+    if (req.AmountCents <= 0)
+        return Results.BadRequest(new { error = "amountCents must be a positive integer (cents)." });
+
+    // 1. Build the order object (not saved yet — we only persist if Stripe succeeds).
     var order = new Order { AmountCents = req.AmountCents, Currency = req.Currency };
-    db.Orders.Add(order);
 
     // 2. Create the matching PaymentIntent on Stripe (test mode).
     //    Metadata carries our order id so we can find the order from a webhook.
-    var intent = await new PaymentIntentService().CreateAsync(new PaymentIntentCreateOptions
+    PaymentIntent intent;
+    try
     {
-        Amount = req.AmountCents,
-        Currency = req.Currency,
-        PaymentMethodTypes = ["card"],
-        Metadata = new Dictionary<string, string> { ["order_id"] = order.Id.ToString() }
-    });
+        intent = await new PaymentIntentService().CreateAsync(new PaymentIntentCreateOptions
+        {
+            Amount = req.AmountCents,
+            Currency = req.Currency,
+            PaymentMethodTypes = ["card"],
+            Metadata = new Dictionary<string, string> { ["order_id"] = order.Id.ToString() }
+        });
+    }
+    catch (StripeException ex)
+    {
+        // Stripe rejected the request (e.g. amount below the currency minimum,
+        // unknown currency). That's the caller's fault -> 400 with a clean message,
+        // never the raw exception/stack trace.
+        return Results.BadRequest(new { error = ex.StripeError?.Message ?? ex.Message });
+    }
 
-    // 3. Remember which PaymentIntent belongs to this order, then save.
+    // 3. Stripe accepted it: now persist the order with its PaymentIntent id.
     order.StripePaymentIntentId = intent.Id;
+    db.Orders.Add(order);
     await db.SaveChangesAsync();
 
     // 4. Hand the clientSecret to the frontend so Stripe.js can confirm the payment.
@@ -98,6 +114,7 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
         "clientSecret the frontend uses to confirm the card.\n\n" +
         "Body: amountCents (integer, in cents — 1999 = 19.99) and currency (lowercase ISO code, e.g. \"eur\").")
     .Produces(StatusCodes.Status201Created)
+    .Produces(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
 
 // Receive webhooks from Stripe. This is where we learn about payments.
