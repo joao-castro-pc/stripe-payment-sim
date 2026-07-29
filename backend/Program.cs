@@ -8,7 +8,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=paymentsim.db"));
 
+// Swagger: an in-browser UI to explore and call the API by hand (dev only).
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
+
+// Serve Swagger UI at /swagger while developing.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 // Tell the Stripe SDK which secret key to use for every API call.
 // The key comes from configuration (user-secrets in dev) — never hard-coded.
