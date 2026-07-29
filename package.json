@@ -5,11 +5,12 @@
   "scripts": {
     "postinstall": "npm --prefix frontend install && dotnet restore backend",
     "dev": "concurrently -n api,web,stripe -c blue,green,magenta \"npm:dev:api\" \"npm:dev:web\" \"npm:dev:stripe\"",
-    "dev:api": "dotnet watch --non-interactive run --project backend",
-    "dev:web": "npm --prefix frontend run dev",
+    "dev:api": "kill-port 5144 && dotnet watch --non-interactive run --project backend",
+    "dev:web": "kill-port 5173 && npm --prefix frontend run dev",
     "dev:stripe": "stripe listen --forward-to localhost:5144/webhook"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "kill-port": "^2.0.1"
   }
 }

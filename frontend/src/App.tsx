@@ -116,7 +116,6 @@ export default function App() {
   // Development). Vite sets DEV=true for `npm run dev`, false for a prod build,
   // so the button never ships in a production bundle.
   const isDev = import.meta.env.DEV
-  console.log('App isDev', isDev) // eslint-disable-line no-console
 
   // Initial load (and manual invalidations). No polling anymore.
   const { data: orders, isPending, isError, error } = useQuery({
