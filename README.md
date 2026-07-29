@@ -56,8 +56,8 @@ production async payments: **webhook signature verification** and **idempotency*
 ## Setup
 
 ```bash
-# 1. Install JS deps (root installs the frontend too, via postinstall).
-#    .NET restores automatically on first run.
+# Installs everything: root + frontend JS deps, and restores the backend
+# NuGet packages (`dotnet restore`) — all via the root postinstall.
 npm install
 ```
 
