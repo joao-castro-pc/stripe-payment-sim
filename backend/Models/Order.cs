@@ -1,11 +1,12 @@
 namespace PaymentSim.Api.Models;
 
-// The status an order can be in. Starts Pending; flips to Paid when Stripe
-// tells us (via webhook) the payment succeeded.
+// The status an order can be in. Starts Pending; a webhook flips it to Paid
+// (payment succeeded) or Failed (payment_intent.payment_failed).
 public enum OrderStatus
 {
     Pending,
-    Paid
+    Paid,
+    Failed
 }
 
 // One purchase in our fake shop.
