@@ -14,6 +14,10 @@ var app = builder.Build();
 // The key comes from configuration (user-secrets in dev) — never hard-coded.
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
+// The webhook signing secret ("whsec_..."). Stripe uses it to sign every
+// webhook it sends us; we use it to verify the request really came from Stripe.
+var webhookSecret = builder.Configuration["Stripe:WebhookSecret"];
+
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -60,6 +64,47 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
         amountCents = order.AmountCents,
         currency = order.Currency
     });
+});
+
+// Receive webhooks from Stripe. This is where we learn about payments.
+// CRITICAL: we must verify the signature, or anyone could POST a fake
+// "payment succeeded" here and get free goods.
+app.MapPost("/webhook", async (HttpRequest request) =>
+{
+    // 1. Read the RAW body as text. We must NOT let the framework parse it into
+    //    an object first: the signature is computed over the exact bytes Stripe
+    //    sent, so any re-serialization would break verification.
+    using var reader = new StreamReader(request.Body);
+    var json = await reader.ReadToEndAsync();
+
+    // 2. The signature Stripe attached to this request. A forged request may
+    //    omit it entirely -> reject cleanly with 400 instead of crashing.
+    var signature = request.Headers["Stripe-Signature"].ToString();
+    if (string.IsNullOrEmpty(signature))
+        return Results.BadRequest(new { error = "Missing signature" });
+
+    if (string.IsNullOrEmpty(webhookSecret))
+        return Results.Problem("Webhook secret not configured. Set Stripe:WebhookSecret via user-secrets.");
+
+    Event stripeEvent;
+    try
+    {
+        // 3. Recompute the signature from (json + secret) and compare. Throws if
+        //    it doesn't match — i.e. the payload was forged or tampered with.
+        stripeEvent = EventUtility.ConstructEvent(json, signature, webhookSecret);
+    }
+    catch (StripeException)
+    {
+        // Bad/missing signature -> reject. Never trust an unverified payload.
+        return Results.BadRequest(new { error = "Invalid signature" });
+    }
+
+    // 4. Verified. For now just acknowledge; Steps 6-7 add idempotency + order update.
+    app.Logger.LogInformation("Verified Stripe event: {Type} ({Id})",
+        stripeEvent.Type, stripeEvent.Id);
+
+    // Always answer 2xx once handled, or Stripe keeps retrying.
+    return Results.Ok();
 });
 
 app.Run();
