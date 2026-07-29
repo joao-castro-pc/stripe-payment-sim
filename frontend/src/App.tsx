@@ -112,6 +112,11 @@ function CheckoutForm() {
 
 export default function App() {
   const queryClient = useQueryClient()
+  // Deleting an order is a dev-only tool (the backend endpoint only exists in
+  // Development). Vite sets DEV=true for `npm run dev`, false for a prod build,
+  // so the button never ships in a production bundle.
+  const isDev = import.meta.env.DEV
+  console.log('App isDev', isDev) // eslint-disable-line no-console
 
   // Initial load (and manual invalidations). No polling anymore.
   const { data: orders, isPending, isError, error } = useQuery({
@@ -159,7 +164,7 @@ export default function App() {
                 <th className="px-4 py-3">Amount</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3"></th>
+                {isDev && <th className="px-4 py-3"></th>}
               </tr>
             </thead>
             <tbody>
@@ -168,16 +173,18 @@ export default function App() {
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatMoney(o.amountCents, o.currency)}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                   <td className="px-4 py-3 text-sm text-gray-500">{new Date(o.createdAt).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => del.mutate(o.id)}
-                      disabled={del.isPending}
-                      className="text-sm text-gray-400 transition hover:text-red-600 disabled:opacity-50"
-                      title="Delete order"
-                    >
-                      ✕
-                    </button>
-                  </td>
+                  {isDev && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => del.mutate(o.id)}
+                        disabled={del.isPending}
+                        className="text-sm text-gray-400 transition hover:text-red-600 disabled:opacity-50"
+                        title="Delete order"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
