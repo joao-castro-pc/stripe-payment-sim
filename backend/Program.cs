@@ -155,7 +155,7 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
         // 3. Recompute the signature from (json + secret) and compare. Throws if
         //    it doesn't match — i.e. the payload was forged or tampered with.
         stripeEvent = EventUtility.ConstructEvent(json, signature, webhookSecret);
-        app.Logger.LogInformation("Received Stripe event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
+        app.Logger.LogInformation("📨 Received Stripe event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
     }
     catch (StripeException)
     {
@@ -167,12 +167,12 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
     //    Stripe delivers "at least once", so redeliveries WILL happen.
     if (await db.ProcessedEvents.AnyAsync(e => e.Id == stripeEvent.Id))
     {
-        app.Logger.LogInformation("Duplicate event ignored: {Id}", stripeEvent.Id);
+        app.Logger.LogInformation("🔁 Duplicate event ignored: {Id}", stripeEvent.Id);
         return Results.Ok();
     }
 
     // 5. First time we see it -> do the real work.
-    app.Logger.LogInformation("Processing event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
+    app.Logger.LogInformation("⚙️ Processing event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
 
     // 5a. We only care about successful payments here. Find the matching order
     //     (linked by PaymentIntent id in Step 4) and flip it to Paid.
@@ -186,12 +186,12 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
         {
             // Happens for events not tied to one of our orders (e.g. `stripe trigger`
             // creates its own PaymentIntent). Nothing to update.
-            app.Logger.LogWarning("No order matches PaymentIntent {Pi}", paymentIntent.Id);
+            app.Logger.LogWarning("⚠️ No order matches PaymentIntent {Pi}", paymentIntent.Id);
         }
         else
         {
             order.Status = OrderStatus.Paid;
-            app.Logger.LogInformation("Order {Order} -> Paid (PaymentIntent {Pi})",
+            app.Logger.LogInformation("✅ Order {Order} -> Paid (PaymentIntent {Pi})",
                 order.Id, paymentIntent.Id);
         }
     }
@@ -208,7 +208,7 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
     catch (DbUpdateException)
     {
         // Another concurrent delivery inserted the same id first -> it's a duplicate.
-        app.Logger.LogInformation("Duplicate event race ignored: {Id}", stripeEvent.Id);
+        app.Logger.LogInformation("🔁 Duplicate event race ignored (PK conflict): {Id}", stripeEvent.Id);
     }
 
     // Always answer 2xx once handled, or Stripe keeps retrying.
