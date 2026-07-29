@@ -41,6 +41,6 @@ Built step by step — one feature per commit. See the git history.
 - [x] 5. Webhook endpoint + signature verification
 - [x] 6. Idempotency on event id
 - [x] 7. Order transitions to "paid"
-- [ ] 8. Frontend checkout button
+- [x] 8. Frontend checkout button
 - [ ] 9. UI reflects order status
 - [ ] 10. End-to-end README (Stripe CLI)

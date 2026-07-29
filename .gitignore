@@ -2,6 +2,7 @@
 # NEVER commit Stripe keys or webhook secrets.
 .env
 .env.*
+!.env.example
 *.local
 
 # ---- .NET ----
