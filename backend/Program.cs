@@ -6,6 +6,15 @@ using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Console logs: one line per entry, with a short timestamp. Replaces the default
+// two-line formatter so our webhook/checkout logs are easy to scan.
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(options =>
+{
+    options.SingleLine = true;
+    options.TimestampFormat = "HH:mm:ss ";
+});
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=paymentsim.db"));
 
