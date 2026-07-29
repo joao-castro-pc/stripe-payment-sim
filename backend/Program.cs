@@ -295,7 +295,7 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifi
 // clean slate while testing. Only mapped in Development, so it can't ship to prod.
 if (app.Environment.IsDevelopment())
 {
-    app.MapPost("/dev/reset", async (HttpContext http, AppDbContext db, OrderNotifier notifier) =>
+    app.MapPost("/dev/reset", async (HttpContext http, AppDbContext db, OrderNotifier notifier, bool confirm = false) =>
     {
         // Second guard: only from the local machine (loopback: 127.0.0.1 / ::1).
         // Env alone isn't enough — a staging box might run as Development and be
@@ -308,6 +308,11 @@ if (app.Environment.IsDevelopment())
             return Results.NotFound();
         }
 
+        // Confirmation guard: destructive action requires an explicit opt-in, so an
+        // accidental POST (or a stray click in Swagger) can't wipe the data.
+        if (!confirm)
+            return Results.BadRequest(new { error = "This deletes ALL orders and events. Add ?confirm=true to proceed." });
+
         // ExecuteDeleteAsync runs a single DELETE in the DB (no loading rows first).
         var orders = await db.Orders.ExecuteDeleteAsync();
         var events = await db.ProcessedEvents.ExecuteDeleteAsync();
@@ -317,7 +322,8 @@ if (app.Environment.IsDevelopment())
     })
     .WithTags("Dev")
     .WithSummary("Reset the database (dev only)")
-    .WithDescription("Deletes all orders and processed-event records. Schema stays. Development only.");
+    .WithDescription("Deletes all orders and processed-event records. Schema stays. " +
+        "Development only, localhost only, and requires ?confirm=true.");
 }
 
 app.Run();
