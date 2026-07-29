@@ -155,7 +155,8 @@ stripe-payment-sim/
 
 - **Money is stored in cents** (`long`), never floats — avoids rounding bugs.
 - **`EnsureCreated`, not migrations** — fine for a demo; a real app would use EF
-  Core migrations. Delete `backend/paymentsim.db` to reset.
+  Core migrations. To clear data (dev only): `POST /dev/reset` (empties the tables,
+  keeps the schema) or delete `backend/paymentsim.db*` for a full wipe.
 - **The SSE notifier is in-memory** — works for a single API instance. Scaling to
   multiple instances would need a shared bus (e.g. Redis).
 - **Secrets** live in .NET user-secrets and `frontend/.env`, both untracked.

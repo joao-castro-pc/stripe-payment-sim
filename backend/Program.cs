@@ -290,6 +290,24 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifi
     .Produces(StatusCodes.Status200OK)
     .Produces(StatusCodes.Status400BadRequest);
 
+// Dev-only: wipe all orders + processed events (keeps the schema). Handy for a
+// clean slate while testing. Only mapped in Development, so it can't ship to prod.
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/dev/reset", async (AppDbContext db, OrderNotifier notifier) =>
+    {
+        // ExecuteDeleteAsync runs a single DELETE in the DB (no loading rows first).
+        var orders = await db.Orders.ExecuteDeleteAsync();
+        var events = await db.ProcessedEvents.ExecuteDeleteAsync();
+        notifier.Notify("orders-changed"); // push so the UI clears immediately
+        app.Logger.LogWarning("🧹 DB reset: deleted {Orders} orders, {Events} processed events", orders, events);
+        return Results.Ok(new { deletedOrders = orders, deletedEvents = events });
+    })
+    .WithTags("Dev")
+    .WithSummary("Reset the database (dev only)")
+    .WithDescription("Deletes all orders and processed-event records. Schema stays. Development only.");
+}
+
 app.Run();
 
 /// <summary>Request body to start a checkout.</summary>
