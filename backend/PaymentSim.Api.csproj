@@ -5,6 +5,10 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>977fe150-7c5f-4204-8fca-8a3aa350f1ef</UserSecretsId>
+    <!-- Generate an XML doc file so Swagger can show our /// comments.
+         Suppress CS1591 (missing XML comment) so we don't have to document every public member. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

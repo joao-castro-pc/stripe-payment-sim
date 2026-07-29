@@ -10,7 +10,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Swagger: an in-browser UI to explore and call the API by hand (dev only).
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new() { Title = "PaymentSim API", Version = "v1" });
+
+    // Feed our XML doc comments into Swagger so summaries/examples show up.
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFile));
+});
 
 var app = builder.Build();
 
@@ -35,12 +42,20 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
 }
 
-app.MapGet("/", () => "PaymentSim API");
+app.MapGet("/", () => "PaymentSim API")
+    .ExcludeFromDescription(); // hide the plain-text root from Swagger
 
-app.MapGet("/health", () => new { status = "ok" });
+app.MapGet("/health", () => new { status = "ok" })
+    .WithTags("System")
+    .WithSummary("Liveness check")
+    .WithDescription("Returns 200 with { status: \"ok\" } if the API is up. No parameters.");
 
 app.MapGet("/orders", async (AppDbContext db) =>
-    await db.Orders.OrderByDescending(o => o.CreatedAt).ToListAsync());
+        await db.Orders.OrderByDescending(o => o.CreatedAt).ToListAsync())
+    .WithTags("Orders")
+    .WithSummary("List all orders")
+    .WithDescription("Returns every order, newest first. Use it to see an order flip from Pending to Paid after a webhook.")
+    .Produces<List<Order>>(StatusCodes.Status200OK);
 
 // Start a checkout: create our order (Pending) AND a Stripe PaymentIntent.
 // Returns the clientSecret the frontend needs to confirm the card payment.
@@ -75,7 +90,15 @@ app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db) =>
         amountCents = order.AmountCents,
         currency = order.Currency
     });
-});
+})
+    .WithTags("Orders")
+    .WithSummary("Start a checkout")
+    .WithDescription(
+        "Creates a Pending order and a matching Stripe PaymentIntent, then returns the " +
+        "clientSecret the frontend uses to confirm the card.\n\n" +
+        "Body: amountCents (integer, in cents — 1999 = 19.99) and currency (lowercase ISO code, e.g. \"eur\").")
+    .Produces(StatusCodes.Status201Created)
+    .ProducesProblem(StatusCodes.Status500InternalServerError);
 
 // Receive webhooks from Stripe. This is where we learn about payments.
 // CRITICAL: we must verify the signature, or anyone could POST a fake
@@ -116,8 +139,21 @@ app.MapPost("/webhook", async (HttpRequest request) =>
 
     // Always answer 2xx once handled, or Stripe keeps retrying.
     return Results.Ok();
-});
+})
+    .WithTags("Webhooks")
+    .WithSummary("Stripe webhook receiver")
+    .WithDescription(
+        "Called by Stripe (not by the frontend). Requires a valid 'Stripe-Signature' header; " +
+        "the raw body is verified against the webhook secret.\n\n" +
+        "You cannot produce a valid call from Swagger — use the Stripe CLI " +
+        "(`stripe listen` + `stripe trigger`). Calling it here returns 400 (no valid signature), " +
+        "which demonstrates the forged-request rejection.")
+    .Produces(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status400BadRequest);
 
 app.Run();
 
+/// <summary>Request body to start a checkout.</summary>
+/// <param name="AmountCents">Amount in the smallest currency unit (cents). Example: 1999 means 19.99.</param>
+/// <param name="Currency">Lowercase ISO currency code. Example: "eur".</param>
 record CreateOrderRequest(long AmountCents, string Currency);
