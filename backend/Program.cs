@@ -158,11 +158,35 @@ app.MapPost("/webhook", async (HttpRequest request, AppDbContext db) =>
         return Results.Ok();
     }
 
-    // 5. First time we see it -> do the real work. (Step 7 updates the order here.)
+    // 5. First time we see it -> do the real work.
     app.Logger.LogInformation("Processing event: {Type} ({Id})", stripeEvent.Type, stripeEvent.Id);
+
+    // 5a. We only care about successful payments here. Find the matching order
+    //     (linked by PaymentIntent id in Step 4) and flip it to Paid.
+    if (stripeEvent.Type == EventTypes.PaymentIntentSucceeded &&
+        stripeEvent.Data.Object is PaymentIntent paymentIntent)
+    {
+        var order = await db.Orders
+            .FirstOrDefaultAsync(o => o.StripePaymentIntentId == paymentIntent.Id);
+
+        if (order is null)
+        {
+            // Happens for events not tied to one of our orders (e.g. `stripe trigger`
+            // creates its own PaymentIntent). Nothing to update.
+            app.Logger.LogWarning("No order matches PaymentIntent {Pi}", paymentIntent.Id);
+        }
+        else
+        {
+            order.Status = OrderStatus.Paid;
+            app.Logger.LogInformation("Order {Order} -> Paid (PaymentIntent {Pi})",
+                order.Id, paymentIntent.Id);
+        }
+    }
 
     // 6. Record it as processed. The primary key on Id is the REAL guard: if two
     //    duplicate deliveries race past the check above, the second insert fails.
+    //    Because the order change and this insert share one SaveChanges, a duplicate
+    //    rolls back BOTH -> the order is never marked Paid twice.
     db.ProcessedEvents.Add(new ProcessedEvent { Id = stripeEvent.Id });
     try
     {
