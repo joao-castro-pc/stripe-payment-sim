@@ -4,7 +4,13 @@
 
 import type { components } from "./api-types";
 
-export const API_BASE = "http://localhost:5144";
+// Where the backend lives. In the single-container production deploy the API and
+// the SPA share one origin, so the base is "" (same-origin, relative fetches). In
+// local dev the API runs on a different port, so default to it. Override with
+// VITE_API_BASE at build time if you split the frontend and backend onto separate
+// hosts.
+const configuredBase = import.meta.env.VITE_API_BASE as string | undefined;
+export const API_BASE = configuredBase ?? (import.meta.env.DEV ? "http://localhost:5144" : "");
 
 type Schemas = components["schemas"];
 

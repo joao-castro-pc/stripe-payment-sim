@@ -16,8 +16,13 @@ builder.Logging.AddSimpleConsole(options =>
     options.TimestampFormat = "HH:mm:ss ";
 });
 
+// Connection string from config so production can point SQLite at a persistent
+// volume (e.g. "Data Source=/data/paymentsim.db" via ConnectionStrings__Default).
+// Falls back to a local file for development.
+var connectionString = builder.Configuration.GetConnectionString("Default")
+    ?? "Data Source=paymentsim.db";
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite("Data Source=paymentsim.db"));
+    options.UseSqlite(connectionString));
 
 // Serialize enums as their NAMES ("Paid") instead of numbers (1) in JSON. The
 // wire format becomes self-describing, and the OpenAPI schema exposes the exact
@@ -58,6 +63,13 @@ var app = builder.Build();
 
 app.UseCors("frontend");
 
+// Serve the built React app (copied into wwwroot in the Docker image). In a
+// single-container ("monolith") deploy the API and the SPA share one origin, so
+// there's no CORS and the frontend calls the API with a relative base URL.
+// In local dev there's no wwwroot, so these are no-ops and Vite serves the SPA.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // Serve Swagger UI at /swagger while developing.
 if (app.Environment.IsDevelopment())
 {
@@ -84,6 +96,11 @@ app.MapWebhookEndpoints();
 // Destructive dev tools — only exist in Development.
 if (app.Environment.IsDevelopment())
     app.MapDevEndpoints();
+
+// SPA fallback: any request that didn't match an API route or a static file
+// returns index.html, so client-side routes (/checkout, /admin) work on reload.
+// Harmless in dev (no index.html present) since Vite serves the SPA there.
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
