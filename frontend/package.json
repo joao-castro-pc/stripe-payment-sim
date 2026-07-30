@@ -4,11 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "npm run gen:api",
     "dev": "vite",
+    "prebuild": "npm run gen:api",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "gen:api": "openapi-typescript http://localhost:5144/swagger/v1/swagger.json -o src/api-types.ts"
+    "gen:api": "openapi-typescript ./openapi.json -o src/api-types.ts"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.8.0",

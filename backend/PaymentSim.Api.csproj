@@ -9,6 +9,13 @@
          Suppress CS1591 (missing XML comment) so we don't have to document every public member. -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+
+    <!-- Emit the OpenAPI document to frontend/openapi.json on every build (no
+         running server needed). The frontend generates its TypeScript types from
+         this file, so the API contract stays the single source of truth. -->
+    <OpenApiGenerateDocumentsOnBuild>true</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\..\frontend</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,6 +30,12 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.*" />
     <PackageReference Include="Stripe.net" Version="52.1.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+    <!-- Build-time OpenAPI document generation (dotnet-getdocument). Build-only,
+         not shipped at runtime. -->
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="9.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
 </Project>
