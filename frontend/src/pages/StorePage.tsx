@@ -1,11 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { listProducts, type Product } from '../dummyjson'
+import { useCart } from '../cart/CartContext'
+import { Button } from '@/components/ui/button'
 
 // DummyJSON prices are in US dollars, so format as USD here (our order amounts,
 // shown in the admin view, are a different concern in the store's own currency).
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
 function ProductCard({ product }: { product: Product }) {
+  const { add } = useCart()
+
+  const addToCart = () => {
+    add(product)
+    toast.success('Added to cart', { description: product.title })
+  }
+
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
       <div className="aspect-square overflow-hidden bg-gray-50">
@@ -19,10 +29,13 @@ function ProductCard({ product }: { product: Product }) {
       <div className="flex flex-1 flex-col p-4">
         <span className="mb-1 text-xs uppercase tracking-wide text-gray-400">{product.category}</span>
         <h3 className="mb-2 line-clamp-2 text-sm font-semibold text-gray-900">{product.title}</h3>
-        <div className="mt-auto flex items-center justify-between">
+        <div className="mb-3 mt-auto flex items-center justify-between">
           <span className="text-lg font-bold text-gray-900">{usd.format(product.price)}</span>
           <span className="text-xs text-gray-400">{product.stock} in stock</span>
         </div>
+        <Button size="sm" className="w-full" onClick={addToCart}>
+          Add to cart
+        </Button>
       </div>
     </div>
   )

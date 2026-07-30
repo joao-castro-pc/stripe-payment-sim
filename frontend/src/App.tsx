@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import StorePage from './pages/StorePage'
 import AdminPage from './pages/AdminPage'
+import { CartSheet } from './components/CartSheet'
 
 // Two faces of the same system, split by route:
 //   /       -> the customer storefront (fake products, cart, pay via our API)
@@ -32,6 +33,10 @@ export default function App() {
           <span className="mr-2 font-bold text-gray-900">PaymentSim</span>
           <NavTab to="/">Store</NavTab>
           <NavTab to="/admin">Admin</NavTab>
+          {/* Cart trigger + drawer, available on every route. */}
+          <div className="ml-auto">
+            <CartSheet />
+          </div>
         </nav>
       </header>
 

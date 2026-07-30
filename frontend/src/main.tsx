@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Elements } from '@stripe/react-stripe-js'
 import { Toaster } from 'sonner'
 import { stripePromise } from './stripe.ts'
+import { CartProvider } from './cart/CartContext.tsx'
 import './index.css'
 import App from './App.tsx'
 
@@ -19,7 +20,10 @@ createRoot(document.getElementById('root')!).render(
       <Elements stripe={stripePromise}>
         {/* BrowserRouter enables URL-based routing (uses the History API). */}
         <BrowserRouter>
-          <App />
+          {/* CartProvider shares the cart across the store and the nav badge. */}
+          <CartProvider>
+            <App />
+          </CartProvider>
         </BrowserRouter>
         {/* Toast notifications for actions (payment, delete). */}
         <Toaster richColors position="top-right" />
