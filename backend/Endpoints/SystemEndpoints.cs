@@ -4,8 +4,8 @@ public static class SystemEndpoints
 {
     public static void MapSystemEndpoints(this WebApplication app)
     {
-        app.MapGet("/", () => "PaymentSim API")
-            .ExcludeFromDescription(); // hide the plain-text root from Swagger
+        // NB: no MapGet("/") here. In the production image "/" must serve the SPA's
+        // index.html (static files + SPA fallback); a root endpoint would shadow it.
 
         app.MapGet("/health", () => new { status = "ok" })
             .WithTags("System")
