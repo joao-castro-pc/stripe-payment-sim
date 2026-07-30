@@ -101,6 +101,5 @@ public class RefundTests
     }
 
     // Shape of the 202 body, used only to assert the response contract. 
-    //asd
     private record RefundResponseDto(Guid OrderId, string Status, string Message);
 }
