@@ -24,7 +24,7 @@ export function CartSheet() {
       {/* asChild: render OUR button as the trigger instead of the default one. */}
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="relative gap-2">
-          {/* <ShoppingCart className="size-4" /> */}
+          <ShoppingCart className="size-4" />
           Cart
           {count > 0 && (
             <Badge className="ml-1 rounded-full px-1.5">{count}</Badge>
