@@ -70,10 +70,20 @@ public static class OrderEndpoints
                 return Results.BadRequest(new { error = "amountCents must be a positive integer (cents)." });
             }
 
-            checkoutLog.LogInformation("🛒 Checkout requested: {Amount} {Currency}", req.AmountCents, req.Currency);
+            // Normalize currency to a lowercase ISO 4217 code (Stripe wants lowercase).
+            // Validate the shape here so we fail fast with a clear 400 instead of
+            // round-tripping garbage to Stripe.
+            var currency = (req.Currency ?? "").Trim().ToLowerInvariant();
+            if (currency.Length != 3 || !currency.All(char.IsAsciiLetter))
+            {
+                checkoutLog.LogWarning("⚠️ Rejected checkout with invalid currency {Currency}", req.Currency);
+                return Results.BadRequest(new { error = "currency must be a 3-letter ISO code (e.g. \"eur\")." });
+            }
+
+            checkoutLog.LogInformation("🛒 Checkout requested: {Amount} {Currency}", req.AmountCents, currency);
 
             // 1. Build the order object (not saved yet — we only persist if Stripe succeeds).
-            var order = new Order { AmountCents = req.AmountCents, Currency = req.Currency };
+            var order = new Order { AmountCents = req.AmountCents, Currency = currency };
 
             // 2. Create the matching PaymentIntent via the gateway (Stripe, in prod).
             //    The gateway hides Stripe.net behind IPaymentGateway (see Payments/).
@@ -81,7 +91,7 @@ public static class OrderEndpoints
             try
             {
                 intent = await payments.CreatePaymentIntentAsync(
-                    req.AmountCents, req.Currency, order.Id.ToString());
+                    req.AmountCents, currency, order.Id.ToString());
             }
             catch (PaymentGatewayException ex)
             {

@@ -66,6 +66,38 @@ public class OrdersApiTests
     }
 
     [Fact]
+    public async Task CreateOrder_normalizes_currency_to_lowercase()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/orders", new { amountCents = 1999, currency = "USD" });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<CreateOrderResponse>();
+        Assert.Equal("usd", body!.Currency);
+        // The gateway (and the persisted order) get the normalized value.
+        Assert.Equal((1999L, "usd", body.OrderId.ToString()), factory.Payments.LastCall);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("e")]
+    [InlineData("euro")]
+    [InlineData("u5d")]
+    public async Task CreateOrder_with_invalid_currency_returns_400(string currency)
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/orders", new { amountCents = 1999, currency });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        // Rejected before reaching the gateway.
+        Assert.Null(factory.Payments.LastCall);
+    }
+
+    [Fact]
     public async Task CreateOrder_when_gateway_rejects_returns_400()
     {
         using var factory = new TestAppFactory();
