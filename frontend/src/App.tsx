@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { toast } from 'sonner'
-import { listOrders, createOrder, deleteOrder, API_BASE, OrderStatus, type Order } from './api'
+import { listOrders, createOrder, deleteOrder, refundOrder, API_BASE, OrderStatus, type Order } from './api'
 
 function formatMoney(cents: number, currency: string) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100)
@@ -12,6 +12,7 @@ function StatusBadge({ status }: { status: number }) {
   const { label, classes } =
     status === OrderStatus.Paid ? { label: 'Paid', classes: 'bg-emerald-100 text-emerald-800' }
     : status === OrderStatus.Failed ? { label: 'Failed', classes: 'bg-red-100 text-red-800' }
+    : status === OrderStatus.Refunded ? { label: 'Refunded', classes: 'bg-slate-200 text-slate-700' }
     : { label: 'Pending', classes: 'bg-amber-100 text-amber-800' }
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${classes}`}>{label}</span>
@@ -132,6 +133,16 @@ export default function App() {
     onError: (e) => toast.error('Delete failed', { description: (e as Error).message }),
   })
 
+  const refund = useMutation({
+    mutationFn: refundOrder,
+    onSuccess: () => {
+      // The order flips to Refunded via the webhook (SSE will refresh it).
+      queryClient.invalidateQueries({ queryKey: ['orders'] })
+      toast.success('Refund requested', { description: 'The order will show as Refunded shortly.' })
+    },
+    onError: (e) => toast.error('Refund failed', { description: (e as Error).message }),
+  })
+
   // Server push (leg B): open one SSE connection. When the backend pushes a
   // message (an order became Paid), invalidate the query so it refetches once.
   useEffect(() => {
@@ -163,7 +174,7 @@ export default function App() {
                 <th className="px-4 py-3">Amount</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
-                {isDev && <th className="px-4 py-3"></th>}
+                <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -172,18 +183,31 @@ export default function App() {
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatMoney(o.amountCents, o.currency)}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                   <td className="px-4 py-3 text-sm text-gray-500">{new Date(o.createdAt).toLocaleString()}</td>
-                  {isDev && (
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => del.mutate(o.id)}
-                        disabled={del.isPending}
-                        className="text-sm text-gray-400 transition hover:text-red-600 disabled:opacity-50"
-                        title="Delete order"
-                      >
-                        ✕
-                      </button>
-                    </td>
-                  )}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-3">
+                      {/* Refund is a real business action — shown for any Paid order. */}
+                      {o.status === OrderStatus.Paid && (
+                        <button
+                          onClick={() => refund.mutate(o.id)}
+                          disabled={refund.isPending}
+                          className="text-sm font-medium text-indigo-600 transition hover:text-indigo-800 disabled:opacity-50"
+                        >
+                          Refund
+                        </button>
+                      )}
+                      {/* Delete is a dev-only tool (backend endpoint is Development-only). */}
+                      {isDev && (
+                        <button
+                          onClick={() => del.mutate(o.id)}
+                          disabled={del.isPending}
+                          className="text-sm text-gray-400 transition hover:text-red-600 disabled:opacity-50"
+                          title="Delete order"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

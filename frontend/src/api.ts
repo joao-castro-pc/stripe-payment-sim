@@ -13,7 +13,7 @@ export interface Order {
   createdAt: string;
 }
 
-export const OrderStatus = { Pending: 0, Paid: 1, Failed: 2 } as const;
+export const OrderStatus = { Pending: 0, Paid: 1, Failed: 2, Refunded: 3 } as const;
 
 export async function listOrders(): Promise<Order[]> {
   const res = await fetch(`${API_BASE}/orders`);
@@ -33,6 +33,16 @@ export interface CreateOrderResponse {
 export async function deleteOrder(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/orders/${id}?confirm=true`, { method: "DELETE" });
   if (!res.ok) throw new Error(`DELETE /orders/${id} failed: ${res.status}`);
+}
+
+// Refund a paid order. Returns 202 immediately; the order flips to Refunded only
+// when the charge.refunded webhook arrives (see backend).
+export async function refundOrder(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/orders/${id}/refund`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `POST /orders/${id}/refund failed: ${res.status}`);
+  }
 }
 
 export async function createOrder(
