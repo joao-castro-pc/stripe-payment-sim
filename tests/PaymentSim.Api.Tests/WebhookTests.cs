@@ -90,6 +90,22 @@ public class WebhookTests
         Assert.Equal(1, CountEvents(factory, "evt_dup"));
     }
 
+    [Fact]
+    public async Task Webhook_charge_refunded_marks_order_refunded()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+        var orderId = SeedOrder(factory, paymentIntentId: "pi_ref", status: OrderStatus.Paid);
+
+        // charge.refunded carries a Charge (not a PaymentIntent); we match the order
+        // via charge.payment_intent.
+        var payload = ChargeEventJson("evt_ref", EventTypes.ChargeRefunded, "pi_ref");
+        var response = await PostWebhook(client, payload, Sign(payload));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(OrderStatus.Refunded, GetOrder(factory, orderId).Status);
+    }
+
     // --- helpers ---------------------------------------------------------
 
     private const string Secret = TestAppFactory.WebhookSecret;
@@ -120,15 +136,27 @@ public class WebhookTests
             data = new { @object = new { id = paymentIntentId, @object = "payment_intent" } }
         });
 
-    private static Guid SeedOrder(TestAppFactory factory, string paymentIntentId)
+    private static Guid SeedOrder(TestAppFactory factory, string paymentIntentId, OrderStatus status = OrderStatus.Pending)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var order = new Order { AmountCents = 1999, Currency = "eur", StripePaymentIntentId = paymentIntentId };
+        var order = new Order { AmountCents = 1999, Currency = "eur", Status = status, StripePaymentIntentId = paymentIntentId };
         db.Orders.Add(order);
         db.SaveChanges();
         return order.Id;
     }
+
+    // Like EventJson, but data.object is a Charge (object=charge) with a
+    // payment_intent field — the shape of a charge.refunded event.
+    private static string ChargeEventJson(string eventId, string type, string paymentIntentId) =>
+        JsonSerializer.Serialize(new
+        {
+            id = eventId,
+            @object = "event",
+            api_version = StripeConfiguration.ApiVersion,
+            type,
+            data = new { @object = new { id = "ch_test", @object = "charge", payment_intent = paymentIntentId } }
+        });
 
     private static Order GetOrder(TestAppFactory factory, Guid id)
     {

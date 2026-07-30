@@ -13,6 +13,11 @@ public class FakePaymentGateway : IPaymentGateway
     // Records the last call so tests can assert what the endpoint passed in.
     public (long amountCents, string currency, string orderId)? LastCall { get; private set; }
 
+    // Refund tracking.
+    public bool RefundShouldFail { get; set; }
+    public string RefundFailMessage { get; set; } = "refund rejected";
+    public string? LastRefundPaymentIntentId { get; private set; }
+
     public Task<PaymentIntentResult> CreatePaymentIntentAsync(
         long amountCents, string currency, string orderId, CancellationToken ct = default)
     {
@@ -23,5 +28,15 @@ public class FakePaymentGateway : IPaymentGateway
 
         // Deterministic fake ids derived from the order id (no randomness).
         return Task.FromResult(new PaymentIntentResult($"pi_fake_{orderId}", $"pi_fake_{orderId}_secret"));
+    }
+
+    public Task CreateRefundAsync(string paymentIntentId, CancellationToken ct = default)
+    {
+        LastRefundPaymentIntentId = paymentIntentId;
+
+        if (RefundShouldFail)
+            throw new PaymentGatewayException(RefundFailMessage);
+
+        return Task.CompletedTask;
     }
 }
