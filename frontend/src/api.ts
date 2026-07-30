@@ -23,13 +23,9 @@ export async function listOrders(): Promise<Order[]> {
   return res.json();
 }
 
-// What POST /orders returns: the clientSecret is what Stripe.js needs to confirm.
-export interface CreateOrderResponse {
-  orderId: string;
-  clientSecret: string;
-  amountCents: number;
-  currency: string;
-}
+// What POST /orders returns (clientSecret is what Stripe.js needs to confirm).
+// Derived from the contract now that the backend returns a named record.
+export type CreateOrderResponse = { [K in keyof Schemas["CreateOrderResponse"]]-?: NonNullable<Schemas["CreateOrderResponse"][K]> };
 
 // Delete one order. The backend requires ?confirm=true (guarded dev endpoint).
 export async function deleteOrder(id: string): Promise<void> {

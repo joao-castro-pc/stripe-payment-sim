@@ -60,7 +60,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["CreateOrderResponse"];
+                    };
                 };
                 /** @description Bad Request */
                 400: {
@@ -165,7 +167,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["String<>f__AnonymousType3"];
+                        "application/json": components["schemas"]["String<>f__AnonymousType2"];
                     };
                 };
             };
@@ -238,6 +240,23 @@ export interface components {
             /** @description Lowercase ISO currency code. Example: "eur". */
             currency?: string | null;
         };
+        /** @description Response returned when a checkout starts. */
+        CreateOrderResponse: {
+            /**
+             * Format: uuid
+             * @description The new order's id.
+             */
+            orderId?: string;
+            /** @description The Stripe clientSecret the frontend uses to confirm the card. */
+            clientSecret?: string | null;
+            /**
+             * Format: int64
+             * @description Amount in the smallest currency unit (cents).
+             */
+            amountCents?: number;
+            /** @description Lowercase ISO currency code, e.g. "eur". */
+            currency?: string | null;
+        };
         Order: {
             /** Format: uuid */
             id?: string;
@@ -261,7 +280,7 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        "String<>f__AnonymousType3": {
+        "String<>f__AnonymousType2": {
             status?: string | null;
         };
     };

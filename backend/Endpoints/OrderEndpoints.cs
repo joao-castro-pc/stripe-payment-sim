@@ -101,13 +101,10 @@ public static class OrderEndpoints
                 order.Id, order.AmountCents, order.Currency, intent.Id);
 
             // 4. Hand the clientSecret to the frontend so Stripe.js can confirm the payment.
-            return Results.Created($"/orders/{order.Id}", new
-            {
-                orderId = order.Id,
-                clientSecret = intent.ClientSecret,
-                amountCents = order.AmountCents,
-                currency = order.Currency
-            });
+            //    Returned as a named record (not an anonymous object) so it appears in
+            //    the OpenAPI contract and the frontend can generate its type.
+            return Results.Created($"/orders/{order.Id}", new CreateOrderResponse(
+                order.Id, intent.ClientSecret, order.AmountCents, order.Currency));
         })
             .WithTags("Orders")
             .WithSummary("Start a checkout")
@@ -115,7 +112,7 @@ public static class OrderEndpoints
                 "Creates a Pending order and a matching Stripe PaymentIntent, then returns the " +
                 "clientSecret the frontend uses to confirm the card.\n\n" +
                 "Body: amountCents (integer, in cents — 1999 = 19.99) and currency (lowercase ISO code, e.g. \"eur\").")
-            .Produces(StatusCodes.Status201Created)
+            .Produces<CreateOrderResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
@@ -169,3 +166,10 @@ public static class OrderEndpoints
 /// <param name="AmountCents">Amount in the smallest currency unit (cents). Example: 1999 means 19.99.</param>
 /// <param name="Currency">Lowercase ISO currency code. Example: "eur".</param>
 public record CreateOrderRequest(long AmountCents, string Currency);
+
+/// <summary>Response returned when a checkout starts.</summary>
+/// <param name="OrderId">The new order's id.</param>
+/// <param name="ClientSecret">The Stripe clientSecret the frontend uses to confirm the card.</param>
+/// <param name="AmountCents">Amount in the smallest currency unit (cents).</param>
+/// <param name="Currency">Lowercase ISO currency code, e.g. "eur".</param>
+public record CreateOrderResponse(Guid OrderId, string ClientSecret, long AmountCents, string Currency);

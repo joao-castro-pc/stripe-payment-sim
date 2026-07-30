@@ -46,7 +46,14 @@
         },
         "responses": {
           "201": {
-            "description": "Created"
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateOrderResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request"
@@ -108,7 +115,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/String<>f__AnonymousType3"
+                  "$ref": "#/components/schemas/String<>f__AnonymousType2"
                 }
               }
             }
@@ -152,6 +159,33 @@
         },
         "additionalProperties": false,
         "description": "Request body to start a checkout."
+      },
+      "CreateOrderResponse": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "description": "The new order's id.",
+            "format": "uuid"
+          },
+          "clientSecret": {
+            "type": "string",
+            "description": "The Stripe clientSecret the frontend uses to confirm the card.",
+            "nullable": true
+          },
+          "amountCents": {
+            "type": "integer",
+            "description": "Amount in the smallest currency unit (cents).",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string",
+            "description": "Lowercase ISO currency code, e.g. \"eur\".",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Response returned when a checkout starts."
       },
       "Order": {
         "type": "object",
@@ -218,7 +252,7 @@
         },
         "additionalProperties": { }
       },
-      "String<>f__AnonymousType3": {
+      "String<>f__AnonymousType2": {
         "type": "object",
         "properties": {
           "status": {
