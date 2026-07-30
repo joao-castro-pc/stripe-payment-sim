@@ -4,8 +4,17 @@ import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { toast } from 'sonner'
 import { listOrders, createOrder, deleteOrder, refundOrder, API_BASE, type OrderStatus, type Order } from './api'
 
+// Cache one Intl.NumberFormat per currency. Constructing a formatter is costly,
+// and formatMoney runs once per order row on every table render — so we build it
+// once per currency and reuse it instead of allocating a new one each call.
+const fmtCache = new Map<string, Intl.NumberFormat>()
 function formatMoney(cents: number, currency: string) {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(cents / 100)
+  let fmt = fmtCache.get(currency)
+  if (!fmt) {
+    fmt = new Intl.NumberFormat(undefined, { style: 'currency', currency })
+    fmtCache.set(currency, fmt)
+  }
+  return fmt.format(cents / 100)
 }
 
 function StatusBadge({ status }: { status: OrderStatus }) {
@@ -122,6 +131,10 @@ export default function App() {
   const { data: orders, isPending, isError, error } = useQuery({
     queryKey: ['orders'],
     queryFn: listOrders,
+    // The SSE stream pushes updates and invalidates this query on every change,
+    // so treat the cache as fresh for 30s: skip the redundant automatic refetches
+    // (window refocus, reconnect) that would otherwise duplicate the SSE refresh.
+    staleTime: 30_000,
   })
 
   const del = useMutation({
