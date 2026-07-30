@@ -12,6 +12,7 @@ public static class OrderEndpoints
     public static void MapOrderEndpoints(this WebApplication app)
     {
         var checkoutLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Checkout");
+        var refundLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Refund");
 
         // List all orders, newest first.
         app.MapGet("/orders", async (AppDbContext db) =>
@@ -117,6 +118,50 @@ public static class OrderEndpoints
             .Produces(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+        // Refund a paid order. We ASK Stripe to refund, then return 202 Accepted:
+        // the order only becomes Refunded when the charge.refunded webhook arrives
+        // (same "webhook is the source of truth" pattern as payment).
+        app.MapPost("/orders/{id:guid}/refund", async (Guid id, AppDbContext db, IPaymentGateway payments) =>
+        {
+            var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == id);
+            if (order is null)
+                return Results.NotFound(new { error = "Order not found." });
+
+            // Only a Paid order can be refunded. Pending/Failed/already-Refunded -> 400.
+            if (order.Status != OrderStatus.Paid)
+            {
+                refundLog.LogWarning("⚠️ Refund rejected: order {Order} is {Status}, not Paid", order.Id, order.Status);
+                return Results.BadRequest(new { error = $"Only a Paid order can be refunded (this one is {order.Status})." });
+            }
+
+            // A Paid order always has a PaymentIntent id, but guard defensively.
+            if (string.IsNullOrEmpty(order.StripePaymentIntentId))
+                return Results.BadRequest(new { error = "Order has no PaymentIntent to refund." });
+
+            try
+            {
+                await payments.CreateRefundAsync(order.StripePaymentIntentId);
+            }
+            catch (PaymentGatewayException ex)
+            {
+                refundLog.LogWarning("⚠️ Payment provider rejected refund for order {Order}: {Message}", order.Id, ex.Message);
+                return Results.BadRequest(new { error = ex.Message });
+            }
+
+            // Note: we do NOT set Refunded here. The charge.refunded webhook does that.
+            refundLog.LogInformation("↩️ Refund requested for order {Order} (PaymentIntent {Pi})", order.Id, order.StripePaymentIntentId);
+            return Results.Accepted($"/orders/{order.Id}");
+        })
+            .WithTags("Orders")
+            .WithSummary("Refund a paid order")
+            .WithDescription(
+                "Asks Stripe to refund the order's payment. Returns 202 Accepted immediately; " +
+                "the order flips to Refunded only when the charge.refunded webhook arrives. " +
+                "Fails with 404 if the order doesn't exist, or 400 if it isn't Paid.")
+            .Produces(StatusCodes.Status202Accepted)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
     }
 }
 

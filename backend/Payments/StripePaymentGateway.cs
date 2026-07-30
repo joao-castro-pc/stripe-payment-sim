@@ -30,4 +30,20 @@ public class StripePaymentGateway : IPaymentGateway
             throw new PaymentGatewayException(ex.StripeError?.Message ?? ex.Message);
         }
     }
+
+    public async Task CreateRefundAsync(string paymentIntentId, CancellationToken ct = default)
+    {
+        try
+        {
+            // Full refund of the payment intent. Amount omitted = refund everything.
+            await new RefundService().CreateAsync(new RefundCreateOptions
+            {
+                PaymentIntent = paymentIntentId
+            }, cancellationToken: ct);
+        }
+        catch (StripeException ex)
+        {
+            throw new PaymentGatewayException(ex.StripeError?.Message ?? ex.Message);
+        }
+    }
 }

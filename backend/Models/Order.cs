@@ -1,12 +1,14 @@
 namespace PaymentSim.Api.Models;
 
 // The status an order can be in. Starts Pending; a webhook flips it to Paid
-// (payment succeeded) or Failed (payment_intent.payment_failed).
+// (payment succeeded) or Failed (payment_intent.payment_failed). A Paid order
+// can later become Refunded (charge.refunded webhook).
 public enum OrderStatus
 {
     Pending,
     Paid,
-    Failed
+    Failed,
+    Refunded
 }
 
 // One purchase in our fake shop.

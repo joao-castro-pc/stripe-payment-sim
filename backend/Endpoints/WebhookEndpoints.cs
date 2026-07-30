@@ -60,35 +60,50 @@ public static class WebhookEndpoints
             // 5. First time we see it -> do the real work. (The 📨 log above already
             //    recorded arrival; the outcome logs below say what we did.)
 
-            // 5a. React to payment outcomes: succeeded -> Paid, payment_failed -> Failed.
-            //     Match our order by PaymentIntent id (linked in Step 4) and set its status.
+            // 5a. React to outcomes and map each to a new order status + the PaymentIntent
+            //     id we match our order on. Note the object type differs per event:
+            //       - payment_intent.* events carry a PaymentIntent (id is its own id)
+            //       - charge.refunded carries a Charge (id is on charge.PaymentIntentId)
             var orderChanged = false;
-            OrderStatus? newStatus = stripeEvent.Type switch
+            string? paymentIntentId = null;
+            OrderStatus? newStatus = null;
+            switch (stripeEvent.Type)
             {
-                EventTypes.PaymentIntentSucceeded => OrderStatus.Paid,
-                EventTypes.PaymentIntentPaymentFailed => OrderStatus.Failed,
-                _ => null // any other event type: nothing to do
-            };
+                case EventTypes.PaymentIntentSucceeded when stripeEvent.Data.Object is PaymentIntent pi:
+                    (paymentIntentId, newStatus) = (pi.Id, OrderStatus.Paid);
+                    break;
+                case EventTypes.PaymentIntentPaymentFailed when stripeEvent.Data.Object is PaymentIntent pi:
+                    (paymentIntentId, newStatus) = (pi.Id, OrderStatus.Failed);
+                    break;
+                case EventTypes.ChargeRefunded when stripeEvent.Data.Object is Charge charge:
+                    (paymentIntentId, newStatus) = (charge.PaymentIntentId, OrderStatus.Refunded);
+                    break;
+                // any other event type: nothing to do
+            }
 
-            if (newStatus is not null && stripeEvent.Data.Object is PaymentIntent paymentIntent)
+            if (newStatus is not null && paymentIntentId is not null)
             {
                 var order = await db.Orders
-                    .FirstOrDefaultAsync(o => o.StripePaymentIntentId == paymentIntent.Id);
+                    .FirstOrDefaultAsync(o => o.StripePaymentIntentId == paymentIntentId);
 
                 if (order is null)
                 {
                     // Happens for events not tied to one of our orders (e.g. `stripe trigger`
                     // creates its own PaymentIntent). Nothing to update.
-                    webhookLog.LogWarning("⚠️ No order matches PaymentIntent {Pi}", paymentIntent.Id);
+                    webhookLog.LogWarning("⚠️ No order matches PaymentIntent {Pi}", paymentIntentId);
                 }
                 else
                 {
                     order.Status = newStatus.Value;
                     orderChanged = true;
-                    if (newStatus == OrderStatus.Paid)
-                        webhookLog.LogInformation("✅ Order {Order} -> Paid (PaymentIntent {Pi})", order.Id, paymentIntent.Id);
-                    else
-                        webhookLog.LogWarning("❌ Order {Order} -> Failed (PaymentIntent {Pi})", order.Id, paymentIntent.Id);
+                    var (icon, verb) = newStatus.Value switch
+                    {
+                        OrderStatus.Paid => ("✅", "Paid"),
+                        OrderStatus.Failed => ("❌", "Failed"),
+                        OrderStatus.Refunded => ("↩️", "Refunded"),
+                        _ => ("ℹ️", newStatus.Value.ToString())
+                    };
+                    webhookLog.LogInformation("{Icon} Order {Order} -> {Verb} (PaymentIntent {Pi})", icon, order.Id, verb, paymentIntentId);
                 }
             }
 

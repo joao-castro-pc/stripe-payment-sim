@@ -12,6 +12,12 @@ public interface IPaymentGateway
     // Throws PaymentGatewayException if the provider rejects the request.
     Task<PaymentIntentResult> CreatePaymentIntentAsync(
         long amountCents, string currency, string orderId, CancellationToken ct = default);
+
+    // Refund a paid payment intent (full refund). We don't need the result here:
+    // the refund is confirmed asynchronously by the charge.refunded webhook, which
+    // is what actually flips the order to Refunded.
+    // Throws PaymentGatewayException if the provider rejects the request.
+    Task CreateRefundAsync(string paymentIntentId, CancellationToken ct = default);
 }
 
 // What the gateway hands back — just the two fields the endpoint uses. No Stripe
