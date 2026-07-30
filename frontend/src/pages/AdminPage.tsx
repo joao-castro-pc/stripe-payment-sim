@@ -183,8 +183,8 @@ export default function AdminPage() {
       {isError && <p className="text-destructive">Error: {(error as Error).message}</p>}
       {orders && orders.length === 0 && <p className="text-muted-foreground">No orders yet.</p>}
       {orders && orders.length > 0 && (
-        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-          <table className="w-full">
+        <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
+          <table className="w-full min-w-[28rem]">
             <thead>
               <tr className="border-b text-left text-xs uppercase text-muted-foreground">
                 <th className="px-4 py-3">Amount</th>

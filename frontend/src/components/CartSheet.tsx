@@ -25,7 +25,7 @@ export function CartSheet() {
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="relative gap-2">
           <ShoppingCart className="size-4" />
-          Cart
+          <span className="hidden sm:inline">Cart</span>
           {count > 0 && (
             <Badge className="ml-1 rounded-full px-1.5">{count}</Badge>
           )}
@@ -52,12 +52,12 @@ export function CartSheet() {
                   <span className="line-clamp-1 text-sm font-medium">{i.product.title}</span>
                   <span className="text-xs text-muted-foreground">{format(i.product.price)} each</span>
                   <div className="mt-1.5 flex items-center gap-1.5">
-                    <Button variant="outline" size="icon" className="size-6" onClick={() => setQty(i.product.id, i.qty - 1)}>
-                      <Minus className="size-3" />
+                    <Button variant="outline" size="icon" className="size-8" onClick={() => setQty(i.product.id, i.qty - 1)}>
+                      <Minus className="size-3.5" />
                     </Button>
                     <span className="w-6 text-center text-sm tabular-nums">{i.qty}</span>
-                    <Button variant="outline" size="icon" className="size-6" onClick={() => setQty(i.product.id, i.qty + 1)}>
-                      <Plus className="size-3" />
+                    <Button variant="outline" size="icon" className="size-8" onClick={() => setQty(i.product.id, i.qty + 1)}>
+                      <Plus className="size-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -70,10 +70,10 @@ export function CartSheet() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-6 text-muted-foreground hover:text-destructive"
+                    className="size-8 text-muted-foreground hover:text-destructive"
                     onClick={() => remove(i.product.id)}
                   >
-                    <Trash2 className="size-3.5" />
+                    <Trash2 className="size-4" />
                   </Button>
                 </div>
               </div>

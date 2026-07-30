@@ -19,7 +19,7 @@ function NavTab({ to, children }: { to: string; children: React.ReactNode }) {
       end={to === '/'}
       // NavLink passes { isActive } so we can highlight the current tab.
       className={({ isActive }) =>
-        `rounded-md px-3 py-1.5 text-sm font-medium transition ${
+        `rounded-md px-2 py-1.5 text-sm font-medium transition sm:px-3 ${
           isActive ? 'bg-indigo-600 text-white' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
         }`
       }
@@ -33,14 +33,14 @@ export default function App() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <nav className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3">
-          <Link to="/" className="mr-2">
+        <nav className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3 sm:gap-2">
+          <Link to="/" className="mr-1 shrink-0 sm:mr-2">
             <Logo />
           </Link>
           <NavTab to="/">Store</NavTab>
           <NavTab to="/admin">Admin</NavTab>
           {/* Currency + theme + cart, available on every route. */}
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <CurrencySelect />
             <ThemeToggle />
             <CartSheet />
