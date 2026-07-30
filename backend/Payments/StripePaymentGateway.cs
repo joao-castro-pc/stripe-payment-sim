@@ -13,11 +13,14 @@ public class StripePaymentGateway : IPaymentGateway
         try
         {
             // Metadata carries our order id so a later webhook can find the order.
+            // AutomaticPaymentMethods lets Stripe offer every method enabled in the
+            // Dashboard (cards, Link, wallets, …) instead of a fixed ["card"] list —
+            // the Payment Element on the frontend renders whatever is available.
             var intent = await new PaymentIntentService().CreateAsync(new PaymentIntentCreateOptions
             {
                 Amount = amountCents,
                 Currency = currency,
-                PaymentMethodTypes = ["card"],
+                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions { Enabled = true },
                 Metadata = new Dictionary<string, string> { ["order_id"] = orderId }
             }, cancellationToken: ct);
 
