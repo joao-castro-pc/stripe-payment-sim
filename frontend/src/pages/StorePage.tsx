@@ -68,9 +68,10 @@ function ProductCard({ product }: { product: Product }) {
 export default function StorePage() {
   const { data: products, isPending, isError, error } = useQuery({
     queryKey: ['products'],
-    // Fetch a wide slice so category/search filtering has something to work with
-    // (filtering 24 items would feel empty). The catalog is static fake data.
-    queryFn: () => listProducts(100),
+    // Fetch the WHOLE catalog (DummyJSON: limit=0 returns all ~200 products) so
+    // search and the category list cover everything, not just the first page.
+    // The catalog is static fake data, so cache it for a while.
+    queryFn: () => listProducts(0),
     staleTime: 5 * 60_000,
   })
 

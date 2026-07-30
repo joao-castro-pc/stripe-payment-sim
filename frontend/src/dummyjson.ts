@@ -24,6 +24,7 @@ interface ProductsResponse {
 
 const BASE = 'https://dummyjson.com'
 
+// limit=0 is a DummyJSON convention that returns the entire catalog.
 export async function listProducts(limit = 24): Promise<Product[]> {
   const res = await fetch(`${BASE}/products?limit=${limit}`)
   if (!res.ok) throw new Error(`DummyJSON products failed: ${res.status}`)
