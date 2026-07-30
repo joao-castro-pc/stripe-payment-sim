@@ -19,7 +19,7 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
-      # Restores, builds and runs the 17 tests. No Stripe secrets needed: the
+      # Restores, builds and runs the test suite. No Stripe secrets needed: the
       # tests inject dummy keys (see TestAppFactory) and a fake payment gateway.
       - name: Test
         run: dotnet test tests/PaymentSim.Api.Tests --configuration Release
@@ -31,7 +31,7 @@ jobs:
         run: git diff --exit-code -- frontend/openapi.json
 
   frontend:
-    name: Frontend (build + typecheck)
+    name: Frontend (build + test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,3 +52,8 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+      # Component/interaction tests (Vitest + React Testing Library, jsdom).
+      - name: Test
+        working-directory: frontend
+        run: npm run test
