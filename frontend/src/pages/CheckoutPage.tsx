@@ -1,52 +1,88 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CardElement, useElements, useStripe } from '@stripe/react-stripe-js'
-import { useMutation } from '@tanstack/react-query'
+import {
+  AddressElement,
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from '@stripe/react-stripe-js'
+import type { StripeElementsOptions } from '@stripe/stripe-js'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useCart } from '../cart/CartContext'
 import { createOrder } from '../api'
+import { stripePromise } from '../stripe'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
-// Stripe's card iframe is styled via this API (not CSS/Tailwind).
-const cardStyle = {
-  style: {
-    base: { fontSize: '16px', color: '#1f2937', fontFamily: 'system-ui, sans-serif', '::placeholder': { color: '#9ca3af' } },
-    invalid: { color: '#dc2626' },
-  },
-}
-
-export default function CheckoutPage() {
-  const { items, total, clear } = useCart()
+// The actual payment form. It lives INSIDE its own <Elements> provider (mounted
+// with the order's clientSecret), so useStripe/useElements here talk to that
+// PaymentIntent. PaymentElement renders every method enabled in the Dashboard;
+// AddressElement collects a billing address that Stripe attaches on confirm.
+function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
   const stripe = useStripe()
   const elements = useElements()
-  const [focused, setFocused] = useState(false)
-  const [cardComplete, setCardComplete] = useState(false)
-  const [cardError, setCardError] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
 
   const pay = useMutation({
     mutationFn: async () => {
       if (!stripe || !elements) throw new Error('Stripe not ready yet')
-      const card = elements.getElement(CardElement)
-      if (!card) throw new Error('Card field not ready')
 
-      // Cart total is in US dollars; our API wants an integer amount in cents.
-      const amountCents = Math.round(total * 100)
-      const { clientSecret } = await createOrder(amountCents, 'usd')
-
-      const result = await stripe.confirmCardPayment(clientSecret, { payment_method: { card } })
-      if (result.error) throw new Error(result.error.message ?? 'Payment failed')
-      return result.paymentIntent
+      // With Elements created from a clientSecret we don't call elements.submit();
+      // confirmPayment collects the card + address itself. redirect:'if_required'
+      // keeps us on-page for methods that don't need a redirect (cards, Link).
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: `${window.location.origin}/checkout` },
+        redirect: 'if_required',
+      })
+      if (error) throw new Error(error.message ?? 'Payment failed')
+      return paymentIntent
     },
     onSuccess: () => {
-      clear()
-      setDone(true)
+      onPaid()
       toast.success('Payment succeeded', { description: 'Your order is on its way.' })
     },
     onError: (e) => toast.error('Payment failed', { description: (e as Error).message }),
+  })
+
+  return (
+    <>
+      <AddressElement options={{ mode: 'billing' }} />
+      <div className="mt-5">
+        <PaymentElement />
+      </div>
+      <Button
+        className="mt-5 w-full"
+        onClick={() => pay.mutate()}
+        disabled={!stripe || pay.isPending}
+      >
+        {pay.isPending ? 'Processing…' : `Pay ${usd.format(total)}`}
+      </Button>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Test card <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">4242 4242 4242 4242</code>, any future date, any CVC.
+      </p>
+    </>
+  )
+}
+
+export default function CheckoutPage() {
+  const { items, total, clear } = useCart()
+  const [done, setDone] = useState(false)
+
+  // Create the order (→ PaymentIntent → clientSecret) as soon as we reach the
+  // checkout with a non-empty cart. Keyed on the amount so changing the cart
+  // total makes a fresh intent; staleTime Infinity stops it re-creating on
+  // re-render (and dedupes React StrictMode's double effect in dev).
+  const amountCents = Math.round(total * 100)
+  const intent = useQuery({
+    queryKey: ['checkout-intent', amountCents],
+    queryFn: () => createOrder(amountCents, 'usd'),
+    enabled: items.length > 0 && !done,
+    staleTime: Infinity,
+    retry: false,
   })
 
   // Success screen (cart already cleared).
@@ -77,6 +113,15 @@ export default function CheckoutPage() {
       </main>
     )
   }
+
+  // Match the Stripe Elements look to the app's current light/dark theme.
+  const dark = document.documentElement.classList.contains('dark')
+  const options: StripeElementsOptions | undefined = intent.data
+    ? {
+        clientSecret: intent.data.clientSecret,
+        appearance: { theme: dark ? 'night' : 'stripe', variables: { colorPrimary: '#4f46e5' } },
+      }
+    : undefined
 
   return (
     <main className="mx-auto grid max-w-4xl gap-6 px-4 py-8 md:grid-cols-2">
@@ -111,33 +156,17 @@ export default function CheckoutPage() {
           <CardTitle>Payment</CardTitle>
         </CardHeader>
         <CardContent>
-          <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Card details</label>
-          {/* Kept on a fixed white background so the Stripe card iframe (dark text,
-              styled via cardStyle below, not CSS) stays legible in dark mode too. */}
-          <div className={`rounded-lg border bg-white px-3.5 py-3 transition ${focused ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-300'}`}>
-            <CardElement
-              options={cardStyle}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              onChange={(e) => {
-                setCardComplete(e.complete)
-                setCardError(e.error?.message ?? null)
-              }}
-            />
-          </div>
-          {cardError && <p className="mt-2 text-sm text-destructive">{cardError}</p>}
-
-          <Button
-            className="mt-4 w-full"
-            onClick={() => pay.mutate()}
-            disabled={!stripe || pay.isPending || !cardComplete}
-          >
-            {pay.isPending ? 'Processing…' : `Pay ${usd.format(total)}`}
-          </Button>
-
-          <p className="mt-3 text-xs text-muted-foreground">
-            Test card <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">4242 4242 4242 4242</code>, any future date, any CVC.
-          </p>
+          {intent.isPending && <p className="text-sm text-muted-foreground">Preparing checkout…</p>}
+          {intent.isError && (
+            <p className="text-sm text-destructive">Could not start checkout: {(intent.error as Error).message}</p>
+          )}
+          {options && (
+            // key on the clientSecret: if the amount (and thus the intent) changes,
+            // fully remount Elements — its clientSecret option can't change in place.
+            <Elements key={options.clientSecret} stripe={stripePromise} options={options}>
+              <PaymentForm total={total} onPaid={() => { clear(); setDone(true) }} />
+            </Elements>
+          )}
         </CardContent>
       </Card>
     </main>
