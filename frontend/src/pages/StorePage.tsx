@@ -100,7 +100,7 @@ export default function StorePage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       {/* Hero */}
-      <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 px-6 py-10 text-white sm:px-10 sm:py-14">
+      <div className="mb-8 overflow-hidden rounded-2xl bg-linear-to-br from-indigo-600 to-violet-600 px-6 py-10 text-white sm:px-10 sm:py-14">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">The PaymentSim Store</h1>
         <p className="mt-2 max-w-xl text-sm text-indigo-100 sm:text-base">
           A fake shop over a real Stripe integration. Browse, add to cart, and check out with a
