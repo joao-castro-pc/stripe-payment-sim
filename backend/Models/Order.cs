@@ -1,8 +1,14 @@
+using System.Text.Json.Serialization;
+
 namespace PaymentSim.Api.Models;
 
 // The status an order can be in. Starts Pending; a webhook flips it to Paid
 // (payment succeeded) or Failed (payment_intent.payment_failed). A Paid order
 // can later become Refunded (charge.refunded webhook).
+// [JsonConverter] serializes it by NAME ("Paid") in JSON, and makes Swashbuckle
+// expose it as a string enum in OpenAPI so the frontend's generated types are a
+// real union ("Pending" | "Paid" | ...).
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrderStatus
 {
     Pending,

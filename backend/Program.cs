@@ -19,6 +19,13 @@ builder.Logging.AddSimpleConsole(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=paymentsim.db"));
 
+// Serialize enums as their NAMES ("Paid") instead of numbers (1) in JSON. The
+// wire format becomes self-describing, and the OpenAPI schema exposes the exact
+// string values — so the frontend's generated types are a real union
+// ("Pending" | "Paid" | ...) instead of an opaque number.
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
 // Singleton: one shared notifier for the whole app (holds the SSE subscribers).
 builder.Services.AddSingleton<OrderNotifier>();
 
