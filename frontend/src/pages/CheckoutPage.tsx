@@ -11,12 +11,11 @@ import type { StripeElementsOptions } from '@stripe/stripe-js'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useCart } from '../cart/CartContext'
+import { useCurrency } from '../currency/CurrencyContext'
 import { createOrder } from '../api'
 import { stripePromise } from '../stripe'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
 // The actual payment form. It lives inside an <Elements> mounted in DEFERRED mode
 // (amount/currency up front, NO clientSecret). We create the order — and thus the
@@ -25,6 +24,7 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
 function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
   const stripe = useStripe()
   const elements = useElements()
+  const { format, toMinor, currency } = useCurrency()
 
   const pay = useMutation({
     mutationFn: async () => {
@@ -34,9 +34,9 @@ function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
       const { error: submitError } = await elements.submit()
       if (submitError) throw new Error(submitError.message ?? 'Please check your details')
 
-      // 2. Now create the order → PaymentIntent → clientSecret.
-      const amountCents = Math.round(total * 100)
-      const { clientSecret } = await createOrder(amountCents, 'usd')
+      // 2. Now create the order → PaymentIntent → clientSecret, in the chosen
+      //    currency and its correct minor units (JPY has no cents).
+      const { clientSecret } = await createOrder(toMinor(total), currency)
 
       // 3. Confirm against that fresh clientSecret. redirect:'if_required' keeps us
       //    on-page for methods that don't redirect (cards, Link).
@@ -67,7 +67,7 @@ function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
         onClick={() => pay.mutate()}
         disabled={!stripe || pay.isPending}
       >
-        {pay.isPending ? 'Processing…' : `Pay ${usd.format(total)}`}
+        {pay.isPending ? 'Processing…' : `Pay ${format(total)}`}
       </Button>
       <p className="mt-3 text-xs text-muted-foreground">
         Test card <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">4242 4242 4242 4242</code>, any future date, any CVC.
@@ -78,6 +78,7 @@ function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
 
 export default function CheckoutPage() {
   const { items, total, clear } = useCart()
+  const { currency, toMinor, format } = useCurrency()
   const [done, setDone] = useState(false)
 
   // Success screen (cart already cleared).
@@ -112,11 +113,11 @@ export default function CheckoutPage() {
   // Deferred Elements: amount/currency up front (so methods like Link/wallets can
   // show), no clientSecret yet. Match the appearance to the app's light/dark theme.
   const dark = document.documentElement.classList.contains('dark')
-  const amountCents = Math.round(total * 100)
+  const amountMinor = toMinor(total)
   const options: StripeElementsOptions = {
     mode: 'payment',
-    amount: amountCents,
-    currency: 'usd',
+    amount: amountMinor,
+    currency,
     appearance: { theme: dark ? 'night' : 'stripe', variables: { colorPrimary: '#4f46e5' } },
   }
 
@@ -134,15 +135,15 @@ export default function CheckoutPage() {
                 <img src={i.product.thumbnail} alt="" className="size-12 rounded border bg-white object-contain p-1" />
                 <div className="flex flex-1 flex-col">
                   <span className="line-clamp-1 text-sm font-medium">{i.product.title}</span>
-                  <span className="text-xs text-muted-foreground">{i.qty} × {usd.format(i.product.price)}</span>
+                  <span className="text-xs text-muted-foreground">{i.qty} × {format(i.product.price)}</span>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">{usd.format(i.product.price * i.qty)}</span>
+                <span className="text-sm font-semibold tabular-nums">{format(i.product.price * i.qty)}</span>
               </div>
             ))}
           </div>
           <div className="mt-3 flex items-center justify-between border-t pt-3">
             <span className="font-medium">Total</span>
-            <span className="text-lg font-bold tabular-nums">{usd.format(total)}</span>
+            <span className="text-lg font-bold tabular-nums">{format(total)}</span>
           </div>
         </CardContent>
       </Card>
@@ -153,9 +154,9 @@ export default function CheckoutPage() {
           <CardTitle>Payment</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* key on the amount: if the cart total changes, remount Elements so the
-              deferred amount stays in sync with what we'll charge. */}
-          <Elements key={amountCents} stripe={stripePromise} options={options}>
+          {/* key on currency+amount: if either changes, remount Elements so the
+              deferred amount/currency stays in sync with what we'll charge. */}
+          <Elements key={`${currency}-${amountMinor}`} stripe={stripePromise} options={options}>
             <PaymentForm total={total} onPaid={() => { clear(); setDone(true) }} />
           </Elements>
         </CardContent>

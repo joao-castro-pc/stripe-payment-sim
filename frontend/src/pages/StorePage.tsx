@@ -4,12 +4,9 @@ import { toast } from 'sonner'
 import { Search, Star } from 'lucide-react'
 import { listProducts, type Product } from '../dummyjson'
 import { useCart } from '../cart/CartContext'
+import { useCurrency } from '../currency/CurrencyContext'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-
-// DummyJSON prices are in US dollars, so format as USD here (our order amounts,
-// shown in the admin view, are a different concern in the store's own currency).
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
 // Five stars, filled up to the (rounded) rating. Decorative, so aria-hidden.
 function Stars({ rating }: { rating: number }) {
@@ -28,6 +25,7 @@ function Stars({ rating }: { rating: number }) {
 
 function ProductCard({ product }: { product: Product }) {
   const { add } = useCart()
+  const { format } = useCurrency()
 
   const addToCart = () => {
     add(product)
@@ -54,7 +52,7 @@ function ProductCard({ product }: { product: Product }) {
           <span className="text-xs text-muted-foreground">{product.rating.toFixed(1)}</span>
         </div>
         <div className="mb-3 mt-auto flex items-center justify-between">
-          <span className="text-lg font-bold text-card-foreground">{usd.format(product.price)}</span>
+          <span className="text-lg font-bold text-card-foreground">{format(product.price)}</span>
           <span className="text-xs text-muted-foreground">{product.stock} in stock</span>
         </div>
         <Button size="sm" className="w-full" onClick={addToCart}>

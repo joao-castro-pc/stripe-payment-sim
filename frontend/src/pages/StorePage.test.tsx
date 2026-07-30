@@ -4,11 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import StorePage from './StorePage'
 import { CartProvider } from '../cart/CartContext'
+import { CurrencyProvider } from '../currency/CurrencyContext'
 import * as dummy from '../dummyjson'
 import type { Product } from '../dummyjson'
 
 // Replace the real DummyJSON fetch with a controllable mock.
 vi.mock('../dummyjson', () => ({ listProducts: vi.fn() }))
+// Avoid a real FX network call — the provider falls back to static rates anyway.
+vi.mock('../lib/fx', () => ({ fetchRates: vi.fn().mockResolvedValue({ usd: 1, eur: 0.92, gbp: 0.79, jpy: 155 }) }))
 
 const p = (id: number, title: string, category: string): Product => ({
   id, title, description: '', price: 9.99, thumbnail: 'https://example.com/x.png', category, stock: 5, rating: 4,
@@ -24,9 +27,11 @@ function renderStore() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
-      <CartProvider>
-        <StorePage />
-      </CartProvider>
+      <CurrencyProvider>
+        <CartProvider>
+          <StorePage />
+        </CartProvider>
+      </CurrencyProvider>
     </QueryClientProvider>,
   )
 }

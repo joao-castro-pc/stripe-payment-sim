@@ -1,6 +1,7 @@
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '@/cart/CartContext'
+import { useCurrency } from '@/currency/CurrencyContext'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,10 +14,9 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-
 export function CartSheet() {
   const { items, count, total, setQty, remove } = useCart()
+  const { format } = useCurrency()
   const navigate = useNavigate()
 
   return (
@@ -50,7 +50,7 @@ export function CartSheet() {
                 />
                 <div className="flex flex-1 flex-col">
                   <span className="line-clamp-1 text-sm font-medium">{i.product.title}</span>
-                  <span className="text-xs text-muted-foreground">{usd.format(i.product.price)} each</span>
+                  <span className="text-xs text-muted-foreground">{format(i.product.price)} each</span>
                   <div className="mt-1.5 flex items-center gap-1.5">
                     <Button variant="outline" size="icon" className="size-6" onClick={() => setQty(i.product.id, i.qty - 1)}>
                       <Minus className="size-3" />
@@ -65,7 +65,7 @@ export function CartSheet() {
                     lines up across rows regardless of the price string width. */}
                 <div className="flex flex-col items-end justify-between">
                   <span className="text-sm font-semibold tabular-nums">
-                    {usd.format(i.product.price * i.qty)}
+                    {format(i.product.price * i.qty)}
                   </span>
                   <Button
                     variant="ghost"
@@ -84,7 +84,7 @@ export function CartSheet() {
         <SheetFooter className="mt-auto gap-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Total</span>
-            <span className="text-lg font-bold tabular-nums">{usd.format(total)}</span>
+            <span className="text-lg font-bold tabular-nums">{format(total)}</span>
           </div>
           {/* SheetClose closes the drawer; then we navigate to the checkout page. */}
           <SheetClose asChild>

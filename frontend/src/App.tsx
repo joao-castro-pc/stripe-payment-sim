@@ -5,6 +5,7 @@ import CheckoutPage from './pages/CheckoutPage'
 import { CartSheet } from './components/CartSheet'
 import { Logo } from './components/Logo'
 import { ThemeToggle } from './components/ThemeToggle'
+import { CurrencySelect } from './components/CurrencySelect'
 
 // Two faces of the same system, split by route:
 //   /       -> the customer storefront (fake products, cart, pay via our API)
@@ -38,8 +39,9 @@ export default function App() {
           </Link>
           <NavTab to="/">Store</NavTab>
           <NavTab to="/admin">Admin</NavTab>
-          {/* Theme toggle + cart trigger, available on every route. */}
+          {/* Currency + theme + cart, available on every route. */}
           <div className="ml-auto flex items-center gap-2">
+            <CurrencySelect />
             <ThemeToggle />
             <CartSheet />
           </div>
