@@ -135,10 +135,11 @@ export default function App() {
 
   const refund = useMutation({
     mutationFn: refundOrder,
-    onSuccess: () => {
-      // The order flips to Refunded via the webhook (SSE will refresh it).
+    onSuccess: (res) => {
+      // The order flips to Refunded via the webhook (SSE will refresh it). Show
+      // the backend's own pending-refund message so client and server agree.
       queryClient.invalidateQueries({ queryKey: ['orders'] })
-      toast.success('Refund requested', { description: 'The order will show as Refunded shortly.' })
+      toast.success('Refund requested', { description: res.message })
     },
     onError: (e) => toast.error('Refund failed', { description: (e as Error).message }),
   })

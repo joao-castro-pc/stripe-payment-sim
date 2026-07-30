@@ -33,14 +33,19 @@ export async function deleteOrder(id: string): Promise<void> {
   if (!res.ok) throw new Error(`DELETE /orders/${id} failed: ${res.status}`);
 }
 
-// Refund a paid order. Returns 202 immediately; the order flips to Refunded only
-// when the charge.refunded webhook arrives (see backend).
-export async function refundOrder(id: string): Promise<void> {
+// What POST /orders/{id}/refund returns (202): the request was accepted but the
+// order is still pending — it flips to Refunded only on the charge.refunded webhook.
+export type RefundResponse = { [K in keyof Schemas["RefundResponse"]]-?: NonNullable<Schemas["RefundResponse"][K]> };
+
+// Refund a paid order. Returns the pending-refund body immediately; the order
+// flips to Refunded only when the charge.refunded webhook arrives (see backend).
+export async function refundOrder(id: string): Promise<RefundResponse> {
   const res = await fetch(`${API_BASE}/orders/${id}/refund`, { method: "POST" });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `POST /orders/${id}/refund failed: ${res.status}`);
   }
+  return res.json();
 }
 
 export async function createOrder(

@@ -117,7 +117,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RefundResponse"];
+                    };
                 };
                 /** @description Bad Request */
                 400: {
@@ -279,6 +281,18 @@ export interface components {
             instance?: string | null;
         } & {
             [key: string]: unknown;
+        };
+        /** @description Response returned when a refund is accepted (still pending). */
+        RefundResponse: {
+            /**
+             * Format: uuid
+             * @description The order being refunded.
+             */
+            orderId?: string;
+            /** @description Always "refund_pending" — the order flips to Refunded only on the charge.refunded webhook. */
+            status?: string | null;
+            /** @description Human-readable explanation the frontend can show. */
+            message?: string | null;
         };
         "String<>f__AnonymousType2": {
             status?: string | null;

@@ -148,7 +148,14 @@ public static class OrderEndpoints
 
             // Note: we do NOT set Refunded here. The charge.refunded webhook does that.
             refundLog.LogInformation("↩️ Refund requested for order {Order} (PaymentIntent {Pi})", order.Id, order.StripePaymentIntentId);
-            return Results.Accepted($"/orders/{order.Id}");
+
+            // 202 with a typed body so the caller knows the request was accepted but
+            // is still pending. The order is NOT Refunded yet — that happens on the
+            // webhook. Returned as a named record so it appears in the OpenAPI contract.
+            return Results.Accepted($"/orders/{order.Id}", new RefundResponse(
+                order.Id,
+                "refund_pending",
+                "Refund requested. The order will show as Refunded once Stripe confirms."));
         })
             .WithTags("Orders")
             .WithSummary("Refund a paid order")
@@ -156,7 +163,7 @@ public static class OrderEndpoints
                 "Asks Stripe to refund the order's payment. Returns 202 Accepted immediately; " +
                 "the order flips to Refunded only when the charge.refunded webhook arrives. " +
                 "Fails with 404 if the order doesn't exist, or 400 if it isn't Paid.")
-            .Produces(StatusCodes.Status202Accepted)
+            .Produces<RefundResponse>(StatusCodes.Status202Accepted)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
     }
@@ -173,3 +180,9 @@ public record CreateOrderRequest(long AmountCents, string Currency);
 /// <param name="AmountCents">Amount in the smallest currency unit (cents).</param>
 /// <param name="Currency">Lowercase ISO currency code, e.g. "eur".</param>
 public record CreateOrderResponse(Guid OrderId, string ClientSecret, long AmountCents, string Currency);
+
+/// <summary>Response returned when a refund is accepted (still pending).</summary>
+/// <param name="OrderId">The order being refunded.</param>
+/// <param name="Status">Always "refund_pending" — the order flips to Refunded only on the charge.refunded webhook.</param>
+/// <param name="Message">Human-readable explanation the frontend can show.</param>
+public record RefundResponse(Guid OrderId, string Status, string Message);

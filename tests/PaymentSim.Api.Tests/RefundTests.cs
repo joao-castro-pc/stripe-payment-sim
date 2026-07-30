@@ -49,6 +49,12 @@ public class RefundTests
 
         // 202 Accepted: refund requested, not yet confirmed.
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        // Body echoes the order and a pending status the frontend can show.
+        var body = await response.Content.ReadFromJsonAsync<RefundResponseDto>();
+        Assert.NotNull(body);
+        Assert.Equal(id, body!.OrderId);
+        Assert.Equal("refund_pending", body.Status);
+        Assert.False(string.IsNullOrWhiteSpace(body.Message));
         // The endpoint asked the gateway to refund the right PaymentIntent.
         Assert.Equal("pi_paid", factory.Payments.LastRefundPaymentIntentId);
         // Status is NOT changed yet — that's the webhook's job (see WebhookTests).
@@ -93,4 +99,8 @@ public class RefundTests
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         return db.Orders.AsNoTracking().Single(o => o.Id == id);
     }
+
+    // Shape of the 202 body, used only to assert the response contract. 
+    //asd
+    private record RefundResponseDto(Guid OrderId, string Status, string Message);
 }

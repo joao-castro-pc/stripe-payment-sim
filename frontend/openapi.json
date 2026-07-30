@@ -91,7 +91,14 @@
         ],
         "responses": {
           "202": {
-            "description": "Accepted"
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefundResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Bad Request"
@@ -251,6 +258,28 @@
           }
         },
         "additionalProperties": { }
+      },
+      "RefundResponse": {
+        "type": "object",
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "description": "The order being refunded.",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "description": "Always \"refund_pending\" — the order flips to Refunded only on the charge.refunded webhook.",
+            "nullable": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable explanation the frontend can show.",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Response returned when a refund is accepted (still pending)."
       },
       "String<>f__AnonymousType2": {
         "type": "object",
