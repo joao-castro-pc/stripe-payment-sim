@@ -31,7 +31,7 @@ createRoot(document.getElementById('root')!).render(
         </BrowserRouter>
         {/* Toast notifications for actions (payment, delete). Top-left so they
             never overlap the cart/controls on the right; offset clears the nav. */}
-        <Toaster richColors position="top-left" offset={72} />
+        <Toaster richColors position="top-left" offset={72} visibleToasts={4} />
       </Elements>
     </QueryClientProvider>
   </StrictMode>,

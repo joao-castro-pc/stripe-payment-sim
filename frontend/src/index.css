@@ -131,3 +131,29 @@
     scrollbar-gutter: stable;
     }
 }
+
+/* Toast motion: slide in from the left, exit to the left, smoothly.
+   Sonner uses `transform` for its vertical stacking, so we animate the SEPARATE
+   CSS `translate` property instead — the two compose, and the stack still works.
+   `!important` on animation-name (not on transform) beats sonner's own enter/exit
+   without disturbing its stacking transform. */
+@keyframes toast-enter-left {
+  from { translate: -115% 0; opacity: 0; }
+  to   { translate: 0 0; opacity: 1; }
+}
+@keyframes toast-exit-left {
+  from { translate: 0 0; opacity: 1; }
+  to   { translate: -115% 0; opacity: 0; }
+}
+[data-sonner-toast] {
+  animation-duration: 0.35s;
+  animation-fill-mode: both;
+}
+[data-sonner-toast][data-mounted='true'] {
+  animation-name: toast-enter-left !important;
+  animation-timing-function: cubic-bezier(0.21, 1.02, 0.73, 1);
+}
+[data-sonner-toast][data-removed='true'] {
+  animation-name: toast-exit-left !important;
+  animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.3);
+}
