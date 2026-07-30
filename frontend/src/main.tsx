@@ -25,8 +25,9 @@ createRoot(document.getElementById('root')!).render(
             <App />
           </CartProvider>
         </BrowserRouter>
-        {/* Toast notifications for actions (payment, delete). */}
-        <Toaster richColors position="top-right" />
+        {/* Toast notifications for actions (payment, delete). Offset down so they
+            clear the nav bar / cart button instead of covering it. */}
+        <Toaster richColors position="top-right" offset={72} />
       </Elements>
     </QueryClientProvider>
   </StrictMode>,

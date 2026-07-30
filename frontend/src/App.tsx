@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import StorePage from './pages/StorePage'
 import AdminPage from './pages/AdminPage'
+import CheckoutPage from './pages/CheckoutPage'
 import { CartSheet } from './components/CartSheet'
 
 // Two faces of the same system, split by route:
@@ -42,6 +43,7 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={<StorePage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </div>

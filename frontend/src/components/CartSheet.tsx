@@ -1,10 +1,11 @@
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { useNavigate } from 'react-router-dom'
 import { useCart } from '@/cart/CartContext'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetFooter,
   SheetHeader,
@@ -16,6 +17,7 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
 
 export function CartSheet() {
   const { items, count, total, setQty, remove } = useCart()
+  const navigate = useNavigate()
 
   return (
     <Sheet>
@@ -80,14 +82,16 @@ export function CartSheet() {
             <span className="text-sm text-muted-foreground">Total</span>
             <span className="text-lg font-bold tabular-nums">{usd.format(total)}</span>
           </div>
-          <Button
-            className="w-full"
-            disabled={items.length === 0}
-            // Wired up in the next increment (cart total -> POST /orders -> Stripe).
-            onClick={() => toast.info('Checkout arrives in the next step')}
-          >
-            Checkout
-          </Button>
+          {/* SheetClose closes the drawer; then we navigate to the checkout page. */}
+          <SheetClose asChild>
+            <Button
+              className="w-full"
+              disabled={items.length === 0}
+              onClick={() => navigate('/checkout')}
+            >
+              Checkout
+            </Button>
+          </SheetClose>
         </SheetFooter>
       </SheetContent>
     </Sheet>
