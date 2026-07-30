@@ -8,7 +8,7 @@ import {
   useStripe,
 } from '@stripe/react-stripe-js'
 import type { StripeElementsOptions } from '@stripe/stripe-js'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useCart } from '../cart/CartContext'
 import { createOrder } from '../api'
@@ -18,10 +18,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
-// The actual payment form. It lives INSIDE its own <Elements> provider (mounted
-// with the order's clientSecret), so useStripe/useElements here talk to that
-// PaymentIntent. PaymentElement renders every method enabled in the Dashboard;
-// AddressElement collects a billing address that Stripe attaches on confirm.
+// The actual payment form. It lives inside an <Elements> mounted in DEFERRED mode
+// (amount/currency up front, NO clientSecret). We create the order — and thus the
+// PaymentIntent — only when the user clicks Pay, so abandoned checkouts never
+// create orders and a fresh intent is used every time (no reuse of a terminal one).
 function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -30,11 +30,19 @@ function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
     mutationFn: async () => {
       if (!stripe || !elements) throw new Error('Stripe not ready yet')
 
-      // With Elements created from a clientSecret we don't call elements.submit();
-      // confirmPayment collects the card + address itself. redirect:'if_required'
-      // keeps us on-page for methods that don't need a redirect (cards, Link).
+      // 1. Validate + collect the payment/address fields (required in deferred mode).
+      const { error: submitError } = await elements.submit()
+      if (submitError) throw new Error(submitError.message ?? 'Please check your details')
+
+      // 2. Now create the order → PaymentIntent → clientSecret.
+      const amountCents = Math.round(total * 100)
+      const { clientSecret } = await createOrder(amountCents, 'usd')
+
+      // 3. Confirm against that fresh clientSecret. redirect:'if_required' keeps us
+      //    on-page for methods that don't redirect (cards, Link).
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
+        clientSecret,
         confirmParams: { return_url: `${window.location.origin}/checkout` },
         redirect: 'if_required',
       })
@@ -72,19 +80,6 @@ export default function CheckoutPage() {
   const { items, total, clear } = useCart()
   const [done, setDone] = useState(false)
 
-  // Create the order (→ PaymentIntent → clientSecret) as soon as we reach the
-  // checkout with a non-empty cart. Keyed on the amount so changing the cart
-  // total makes a fresh intent; staleTime Infinity stops it re-creating on
-  // re-render (and dedupes React StrictMode's double effect in dev).
-  const amountCents = Math.round(total * 100)
-  const intent = useQuery({
-    queryKey: ['checkout-intent', amountCents],
-    queryFn: () => createOrder(amountCents, 'usd'),
-    enabled: items.length > 0 && !done,
-    staleTime: Infinity,
-    retry: false,
-  })
-
   // Success screen (cart already cleared).
   if (done) {
     return (
@@ -114,14 +109,16 @@ export default function CheckoutPage() {
     )
   }
 
-  // Match the Stripe Elements look to the app's current light/dark theme.
+  // Deferred Elements: amount/currency up front (so methods like Link/wallets can
+  // show), no clientSecret yet. Match the appearance to the app's light/dark theme.
   const dark = document.documentElement.classList.contains('dark')
-  const options: StripeElementsOptions | undefined = intent.data
-    ? {
-        clientSecret: intent.data.clientSecret,
-        appearance: { theme: dark ? 'night' : 'stripe', variables: { colorPrimary: '#4f46e5' } },
-      }
-    : undefined
+  const amountCents = Math.round(total * 100)
+  const options: StripeElementsOptions = {
+    mode: 'payment',
+    amount: amountCents,
+    currency: 'usd',
+    appearance: { theme: dark ? 'night' : 'stripe', variables: { colorPrimary: '#4f46e5' } },
+  }
 
   return (
     <main className="mx-auto grid max-w-4xl gap-6 px-4 py-8 md:grid-cols-2">
@@ -156,17 +153,11 @@ export default function CheckoutPage() {
           <CardTitle>Payment</CardTitle>
         </CardHeader>
         <CardContent>
-          {intent.isPending && <p className="text-sm text-muted-foreground">Preparing checkout…</p>}
-          {intent.isError && (
-            <p className="text-sm text-destructive">Could not start checkout: {(intent.error as Error).message}</p>
-          )}
-          {options && (
-            // key on the clientSecret: if the amount (and thus the intent) changes,
-            // fully remount Elements — its clientSecret option can't change in place.
-            <Elements key={options.clientSecret} stripe={stripePromise} options={options}>
-              <PaymentForm total={total} onPaid={() => { clear(); setDone(true) }} />
-            </Elements>
-          )}
+          {/* key on the amount: if the cart total changes, remount Elements so the
+              deferred amount stays in sync with what we'll charge. */}
+          <Elements key={amountCents} stripe={stripePromise} options={options}>
+            <PaymentForm total={total} onPaid={() => { clear(); setDone(true) }} />
+          </Elements>
         </CardContent>
       </Card>
     </main>
