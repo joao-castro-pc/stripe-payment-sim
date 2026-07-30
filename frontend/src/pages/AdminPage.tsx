@@ -19,10 +19,10 @@ function formatMoney(cents: number, currency: string) {
 
 function StatusBadge({ status }: { status: OrderStatus }) {
   const { label, classes } =
-    status === 'Paid' ? { label: 'Paid', classes: 'bg-emerald-100 text-emerald-800' }
-    : status === 'Failed' ? { label: 'Failed', classes: 'bg-red-100 text-red-800' }
-    : status === 'Refunded' ? { label: 'Refunded', classes: 'bg-slate-200 text-slate-700' }
-    : { label: 'Pending', classes: 'bg-amber-100 text-amber-800' }
+    status === 'Paid' ? { label: 'Paid', classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300' }
+    : status === 'Failed' ? { label: 'Failed', classes: 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300' }
+    : status === 'Refunded' ? { label: 'Refunded', classes: 'bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300' }
+    : { label: 'Pending', classes: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300' }
   return (
     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${classes}`}>{label}</span>
   )
@@ -74,19 +74,21 @@ function CheckoutForm() {
   })
 
   return (
-    <div className="mb-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-4 text-center text-lg font-semibold text-gray-900">Checkout</h2>
+    <div className="mb-8 rounded-xl border bg-card p-6 shadow-sm">
+      <h2 className="mb-4 text-center text-lg font-semibold text-foreground">Checkout</h2>
 
       <label className="mb-4 block">
-        <span className="mb-1.5 block text-sm font-medium text-gray-500">Amount (EUR)</span>
+        <span className="mb-1.5 block text-sm font-medium text-muted-foreground">Amount (EUR)</span>
         <input
           type="number" step="0.01" min="0.50" value={euros}
           onChange={(e) => setEuros(e.target.value)}
-          className="w-36 rounded-lg border border-gray-300 px-3 py-2 text-base focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          className="w-36 rounded-lg border border-input bg-background px-3 py-2 text-base focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
         />
       </label>
 
-      <label className="mb-1.5 block text-sm font-medium text-gray-500">Card details</label>
+      <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Card details</label>
+      {/* Fixed white background so the Stripe card iframe (dark text, styled via
+          cardStyle, not CSS) stays legible in dark mode too. */}
       <div className={`rounded-lg border bg-white px-3.5 py-3 transition ${
         focused ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-300'
       }`}>
@@ -100,7 +102,7 @@ function CheckoutForm() {
           }}
         />
       </div>
-      {cardError && <p className="mt-2 text-sm text-red-600">{cardError}</p>}
+      {cardError && <p className="mt-2 text-sm text-destructive">{cardError}</p>}
 
       <button
         onClick={() => pay.mutate()}
@@ -113,8 +115,8 @@ function CheckoutForm() {
         {pay.isPending ? 'Processing…' : 'Pay'}
       </button>
 
-      <p className="mt-3 text-xs text-gray-400">
-        Test card <code className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">4242 4242 4242 4242</code>, any future date, any CVC.
+      <p className="mt-3 text-xs text-muted-foreground">
+        Test card <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">4242 4242 4242 4242</code>, any future date, any CVC.
       </p>
     </div>
   )
@@ -172,19 +174,19 @@ export default function AdminPage() {
 
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
-      <h1 className="mb-8 text-center text-3xl font-bold text-gray-900">PaymentSim</h1>
+      <h1 className="mb-8 text-center text-3xl font-bold text-foreground">PaymentSim</h1>
 
       <CheckoutForm />
 
-      <h2 className="mb-3 text-lg font-semibold text-gray-900">Orders</h2>
-      {isPending && <p className="text-gray-500">Loading…</p>}
-      {isError && <p className="text-red-600">Error: {(error as Error).message}</p>}
-      {orders && orders.length === 0 && <p className="text-gray-500">No orders yet.</p>}
+      <h2 className="mb-3 text-lg font-semibold text-foreground">Orders</h2>
+      {isPending && <p className="text-muted-foreground">Loading…</p>}
+      {isError && <p className="text-destructive">Error: {(error as Error).message}</p>}
+      {orders && orders.length === 0 && <p className="text-muted-foreground">No orders yet.</p>}
       {orders && orders.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
+              <tr className="border-b text-left text-xs uppercase text-muted-foreground">
                 <th className="px-4 py-3">Amount</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
@@ -193,10 +195,10 @@ export default function AdminPage() {
             </thead>
             <tbody>
               {orders.map((o: Order) => (
-                <tr key={o.id} className="border-b border-gray-100 last:border-0">
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatMoney(o.amountCents, o.currency)}</td>
+                <tr key={o.id} className="border-b border-border/60 last:border-0">
+                  <td className="px-4 py-3 text-sm font-medium text-foreground">{formatMoney(o.amountCents, o.currency)}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{new Date(o.createdAt).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(o.createdAt).toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-3">
                       {/* Refund is a real business action — shown for any Paid order. */}
@@ -204,7 +206,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => refund.mutate(o.id)}
                           disabled={refund.isPending}
-                          className="text-sm font-medium text-indigo-600 transition hover:text-indigo-800 disabled:opacity-50"
+                          className="text-sm font-medium text-indigo-600 transition hover:text-indigo-800 disabled:opacity-50 dark:text-indigo-400 dark:hover:text-indigo-300"
                         >
                           Refund
                         </button>
@@ -214,7 +216,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => del.mutate(o.id)}
                           disabled={del.isPending}
-                          className="text-sm text-gray-400 transition hover:text-red-600 disabled:opacity-50"
+                          className="text-sm text-muted-foreground transition hover:text-destructive disabled:opacity-50"
                           title="Delete order"
                         >
                           ✕
