@@ -101,7 +101,18 @@ public static class WebhookEndpoints
                     // `stripe trigger` creates its own PaymentIntent). Nothing to update.
                     webhookLog.LogWarning("⚠️ No order matches PaymentIntent {Pi} after {Attempts} attempts", paymentIntentId, maxAttempts);
                 }
-                else
+                // Only apply a SANE transition. Stripe delivers at-least-once and can
+                // deliver out of order, so a late/duplicate event must not corrupt state
+                // (e.g. a stray payment_failed arriving after succeeded must NOT flip a
+                // Paid order to Failed). Legal moves: Pending->Paid, Pending->Failed,
+                // Paid->Refunded. Anything else is ignored (but still recorded as processed).
+                else if (newStatus.Value switch
+                {
+                    OrderStatus.Paid => order.Status == OrderStatus.Pending,
+                    OrderStatus.Failed => order.Status == OrderStatus.Pending,
+                    OrderStatus.Refunded => order.Status == OrderStatus.Paid,
+                    _ => false,
+                })
                 {
                     order.Status = newStatus.Value;
                     orderChanged = true;
@@ -113,6 +124,12 @@ public static class WebhookEndpoints
                         _ => ("ℹ️", newStatus.Value.ToString())
                     };
                     webhookLog.LogInformation("{Icon} Order {Order} -> {Verb} (PaymentIntent {Pi})", icon, order.Id, verb, paymentIntentId);
+                }
+                else
+                {
+                    // Not a legal transition for the order's current state — ignore it.
+                    webhookLog.LogWarning("⏭️ Ignored {New} for order {Order} already {Current} (PaymentIntent {Pi})",
+                        newStatus.Value, order.Id, order.Status, paymentIntentId);
                 }
             }
 

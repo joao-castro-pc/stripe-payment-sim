@@ -106,6 +106,24 @@ public class WebhookTests
         Assert.Equal(OrderStatus.Refunded, GetOrder(factory, orderId).Status);
     }
 
+    [Fact]
+    public async Task Webhook_failed_after_paid_does_not_flip_order()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+        var orderId = SeedOrder(factory, paymentIntentId: "pi_term", status: OrderStatus.Paid);
+
+        // A late/out-of-order payment_failed for an already-Paid order must be
+        // ignored by the transition guard — the order stays Paid.
+        var payload = EventJson("evt_late_fail", EventTypes.PaymentIntentPaymentFailed, "pi_term");
+        var response = await PostWebhook(client, payload, Sign(payload));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(OrderStatus.Paid, GetOrder(factory, orderId).Status);
+        // The event is still consumed (recorded), just with no state change.
+        Assert.True(EventWasRecorded(factory, "evt_late_fail"));
+    }
+
     // --- helpers ---------------------------------------------------------
 
     private const string Secret = TestAppFactory.WebhookSecret;
