@@ -1,0 +1,54 @@
+name: CI
+
+# Build and test on every push to main and on every pull request, so a change
+# that breaks the backend tests or the frontend build is caught before merge.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (build + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      # Restores, builds and runs the 17 tests. No Stripe secrets needed: the
+      # tests inject dummy keys (see TestAppFactory) and a fake payment gateway.
+      - name: Test
+        run: dotnet test tests/PaymentSim.Api.Tests --configuration Release
+
+      # The backend regenerates frontend/openapi.json on build (the contract is the
+      # single source of truth). If it differs from what's committed, someone changed
+      # the API without regenerating the contract -> fail so the FE types can't drift.
+      - name: Contract is up to date
+        run: git diff --exit-code -- frontend/openapi.json
+
+  frontend:
+    name: Frontend (build + typecheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # --legacy-peer-deps: openapi-typescript peers on TS 5, we use TS 6 (see
+      # package.json). The lockfile was created the same way.
+      - name: Install
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps
+
+      # `build` runs prebuild -> gen:api (regenerates src/api-types.ts from the
+      # committed openapi.json), then tsc -b (typecheck) and vite build.
+      - name: Build
+        working-directory: frontend
+        run: npm run build
