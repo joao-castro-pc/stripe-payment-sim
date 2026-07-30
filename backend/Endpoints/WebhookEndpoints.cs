@@ -18,7 +18,7 @@ public static class WebhookEndpoints
         // Receive webhooks from Stripe. This is where we learn about payments.
         // CRITICAL: we must verify the signature, or anyone could POST a fake
         // "payment succeeded" here and get free goods.
-        app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifier notifier) =>
+        app.MapPost("/webhook", async (HttpRequest request, AppDbContext db, OrderNotifier notifier, CancellationToken ct) =>
         {
             // 1. Read the RAW body as text. We must NOT let the framework parse it into
             //    an object first: the signature is computed over the exact bytes Stripe
@@ -83,14 +83,23 @@ public static class WebhookEndpoints
 
             if (newStatus is not null && paymentIntentId is not null)
             {
-                var order = await db.Orders
-                    .FirstOrDefaultAsync(o => o.StripePaymentIntentId == paymentIntentId);
+                // The order might not exist YET: Stripe can deliver this webhook before
+                // POST /orders has committed the order row (a race). Retry a few times
+                // with a short delay before giving up, so a slightly-late commit still
+                // gets matched instead of the payment being silently lost.
+                const int maxAttempts = 3;
+                var order = await db.Orders.FirstOrDefaultAsync(o => o.StripePaymentIntentId == paymentIntentId, ct);
+                for (var attempt = 2; order is null && attempt <= maxAttempts; attempt++)
+                {
+                    await Task.Delay(150, ct);
+                    order = await db.Orders.FirstOrDefaultAsync(o => o.StripePaymentIntentId == paymentIntentId, ct);
+                }
 
                 if (order is null)
                 {
-                    // Happens for events not tied to one of our orders (e.g. `stripe trigger`
-                    // creates its own PaymentIntent). Nothing to update.
-                    webhookLog.LogWarning("⚠️ No order matches PaymentIntent {Pi}", paymentIntentId);
+                    // Still nothing after retrying: the event probably isn't ours (e.g.
+                    // `stripe trigger` creates its own PaymentIntent). Nothing to update.
+                    webhookLog.LogWarning("⚠️ No order matches PaymentIntent {Pi} after {Attempts} attempts", paymentIntentId, maxAttempts);
                 }
                 else
                 {
