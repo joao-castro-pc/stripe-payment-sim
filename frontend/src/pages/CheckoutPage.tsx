@@ -54,8 +54,8 @@ export default function CheckoutPage() {
     return (
       <main className="mx-auto max-w-md px-4 py-16 text-center">
         <div className="mb-4 text-5xl">✅</div>
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">Payment successful</h1>
-        <p className="mb-6 text-sm text-gray-500">
+        <h1 className="mb-2 text-2xl font-bold text-foreground">Payment successful</h1>
+        <p className="mb-6 text-sm text-muted-foreground">
           The order was created and will show as Paid once the Stripe webhook arrives (see the Admin tab).
         </p>
         <Button asChild>
@@ -69,8 +69,8 @@ export default function CheckoutPage() {
   if (items.length === 0) {
     return (
       <main className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="mb-2 text-2xl font-bold text-gray-900">Your cart is empty</h1>
-        <p className="mb-6 text-sm text-gray-500">Add a product before checking out.</p>
+        <h1 className="mb-2 text-2xl font-bold text-foreground">Your cart is empty</h1>
+        <p className="mb-6 text-sm text-muted-foreground">Add a product before checking out.</p>
         <Button asChild>
           <Link to="/">Browse products</Link>
         </Button>
@@ -111,7 +111,9 @@ export default function CheckoutPage() {
           <CardTitle>Payment</CardTitle>
         </CardHeader>
         <CardContent>
-          <label className="mb-1.5 block text-sm font-medium text-gray-500">Card details</label>
+          <label className="mb-1.5 block text-sm font-medium text-muted-foreground">Card details</label>
+          {/* Kept on a fixed white background so the Stripe card iframe (dark text,
+              styled via cardStyle below, not CSS) stays legible in dark mode too. */}
           <div className={`rounded-lg border bg-white px-3.5 py-3 transition ${focused ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-300'}`}>
             <CardElement
               options={cardStyle}
@@ -123,7 +125,7 @@ export default function CheckoutPage() {
               }}
             />
           </div>
-          {cardError && <p className="mt-2 text-sm text-red-600">{cardError}</p>}
+          {cardError && <p className="mt-2 text-sm text-destructive">{cardError}</p>}
 
           <Button
             className="mt-4 w-full"
@@ -133,8 +135,8 @@ export default function CheckoutPage() {
             {pay.isPending ? 'Processing…' : `Pay ${usd.format(total)}`}
           </Button>
 
-          <p className="mt-3 text-xs text-gray-400">
-            Test card <code className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">4242 4242 4242 4242</code>, any future date, any CVC.
+          <p className="mt-3 text-xs text-muted-foreground">
+            Test card <code className="rounded bg-muted px-1.5 py-0.5 text-foreground">4242 4242 4242 4242</code>, any future date, any CVC.
           </p>
         </CardContent>
       </Card>

@@ -11,7 +11,7 @@ export function Logo() {
         <rect x="9" y="18.5" width="6" height="2" rx="1" fill="#c7d2fe" />
         <rect x="19.5" y="18" width="3.5" height="3" rx="0.8" fill="#facc15" />
       </svg>
-      <span className="text-lg font-bold tracking-tight text-gray-900">
+      <span className="text-lg font-bold tracking-tight text-foreground">
         Payment<span className="text-indigo-600">Sim</span>
       </span>
     </span>
