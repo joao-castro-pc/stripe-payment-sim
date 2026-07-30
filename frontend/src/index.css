@@ -126,5 +126,8 @@
     }
   html {
     @apply font-sans;
+    /* Always reserve the scrollbar gutter so the page doesn't shift sideways
+       when filtering changes the row count (scrollbar appearing/disappearing). */
+    scrollbar-gutter: stable;
     }
 }
