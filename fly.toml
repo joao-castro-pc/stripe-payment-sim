@@ -1,28 +1,36 @@
-# Fly.io config for the single-container deploy. `fly launch` may rename the app
-# and pick a region; adjust below to match. Deploy with:
-#   fly deploy --build-arg VITE_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
-app = "paymentsim"
-primary_region = "mad"  # Madrid — close to PT. Use any region you like.
+# fly.toml app configuration file generated for paymentsim on 2026-07-30T16:26:12+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'paymentsim'
+primary_region = 'cdg'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
+  # Publishable key baked into the frontend bundle at build time. NOT secret
+  # (it ships in the browser JS anyway). With it here, plain `fly deploy` works —
+  # no --build-arg needed. Replace with your pk_test_... value.
+  [build.args]
+    VITE_STRIPE_PUBLISHABLE_KEY = 'pk_test_REPLACE_ME'
 
 [env]
-  ASPNETCORE_ENVIRONMENT = "Production"
-  # SQLite on the mounted volume so orders survive restarts/redeploys.
-  ConnectionStrings__Default = "Data Source=/data/paymentsim.db"
+  ASPNETCORE_ENVIRONMENT = 'Production'
+  ConnectionStrings__Default = 'Data Source=/data/paymentsim.db'
+
+[[mounts]]
+  source = 'data'
+  destination = '/data'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  # Scale to zero when idle (free); Stripe webhooks / visits auto-start it again.
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
-# Persistent volume for the SQLite database. Create it once (per region) with:
-#   fly volumes create data --region mad --size 1
-# A single instance owns the volume — don't scale this app beyond 1 machine.
-[[mounts]]
-  source = "data"
-  destination = "/data"
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024
