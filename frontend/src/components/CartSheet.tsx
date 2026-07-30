@@ -24,7 +24,7 @@ export function CartSheet() {
       {/* asChild: render OUR button as the trigger instead of the default one. */}
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="relative gap-2">
-          <ShoppingCart className="size-4" />
+          {/* <ShoppingCart className="size-4" /> */}
           Cart
           {count > 0 && (
             <Badge className="ml-1 rounded-full px-1.5">{count}</Badge>
@@ -59,19 +59,23 @@ export function CartSheet() {
                     <Button variant="outline" size="icon" className="size-6" onClick={() => setQty(i.product.id, i.qty + 1)}>
                       <Plus className="size-3" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="ml-auto size-6 text-muted-foreground hover:text-destructive"
-                      onClick={() => remove(i.product.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
                   </div>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">
-                  {usd.format(i.product.price * i.qty)}
-                </span>
+                {/* Price + remove share a right-aligned column so the trash icon
+                    lines up across rows regardless of the price string width. */}
+                <div className="flex flex-col items-end justify-between">
+                  <span className="text-sm font-semibold tabular-nums">
+                    {usd.format(i.product.price * i.qty)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => remove(i.product.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
