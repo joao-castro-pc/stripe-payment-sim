@@ -11,8 +11,8 @@ export function login(email: string, password: string): Promise<AuthUser> {
 
 // Register a new customer account (signs in on success). Throws the backend
 // message on 400/409 (invalid input / email taken).
-export function register(email: string, password: string): Promise<AuthUser> {
-  return postJson<AuthUser>('/auth/register', { email, password }, { fallbackError: 'Registration failed.' })
+export function register(email: string, password: string, name: string): Promise<AuthUser> {
+  return postJson<AuthUser>('/auth/register', { email, password, name }, { fallbackError: 'Registration failed.' })
 }
 
 // Sign out. Clears the auth cookie server-side. Best-effort — ignore the result.

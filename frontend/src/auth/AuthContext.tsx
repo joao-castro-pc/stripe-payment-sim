@@ -10,7 +10,7 @@ type AuthValue = {
   // of flashing the login page before we know if there's a session.
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string, name: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
 
   const registerM = useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) => apiRegister(email, password),
+    mutationFn: ({ email, password, name }: { email: string; password: string; name: string }) => apiRegister(email, password, name),
     onSuccess: (u) => {
       // Registration signs the user in, so cache them just like login.
       qc.setQueryData(['me'], u)
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: user ?? null,
     isLoading: isPending,
     login: async (email, password) => { await loginM.mutateAsync({ email, password }) },
-    register: async (email, password) => { await registerM.mutateAsync({ email, password }) },
+    register: async (email, password, name) => { await registerM.mutateAsync({ email, password, name }) },
     logout: async () => { await logoutM.mutateAsync() },
   }
 

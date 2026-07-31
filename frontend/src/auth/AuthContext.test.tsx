@@ -17,7 +17,7 @@ vi.mock('./api', () => ({
   logout: vi.fn(),
 }))
 
-const admin: AuthUser = { email: 'admin@test.local', role: 'Admin' }
+const admin: AuthUser = { email: 'admin@test.local', name: 'Admin User', role: 'Admin' }
 
 function renderApp(initialPath: string) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })

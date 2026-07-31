@@ -6,6 +6,7 @@ import OrderDetailPage from './pages/OrderDetailPage'
 import CheckoutPage from './pages/CheckoutPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import AccountPage from './pages/AccountPage'
 import { CartSheet } from './components/CartSheet'
 import { Logo } from './components/Logo'
 import { ThemeToggle } from './components/ThemeToggle'
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           {/* Buying requires any signed-in user; the admin dashboard requires an admin. */}
           <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+          <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
           <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
           <Route path="/admin/orders/:id" element={<RequireAdmin><OrderDetailPage /></RequireAdmin>} />
         </Routes>

@@ -10,11 +10,12 @@ export default function RegisterPage() {
   const { register } = useAuth()
   const navigate = useNavigate()
 
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   const submit = useMutation({
-    mutationFn: () => register(email, password),
+    mutationFn: () => register(email, password, name),
     onSuccess: () => {
       toast.success('Account created')
       // Registration signs you in; go back to the store to shop.
@@ -36,6 +37,18 @@ export default function RegisterPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-sm font-medium text-muted-foreground">Name</span>
+              <input
+                type="text"
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                maxLength={100}
+                className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+              />
+            </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-medium text-muted-foreground">Email</span>
               <input
