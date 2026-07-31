@@ -161,6 +161,17 @@
   animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.3);
 }
 
+/* Radix (the cart Sheet / any dialog) locks body scroll on open and, to hide the
+   now-removed scrollbar's gap, adds `margin-right: <scrollbar>px` to the body. But
+   we already reserve that gap permanently with `scrollbar-gutter: stable` (on
+   <html>), so Radix's compensation double-counts and shifts the whole page left.
+   Cancel it. Higher specificity (html body) + !important + unlayered so it beats
+   Radix's own !important injected style. */
+html body[data-scroll-locked] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+}
+
 /* Gentle entrance: fade up. Used per-route (keyed on the path) and on hero/cards
    so navigating and loading feels smooth rather than snapping into place. */
 @keyframes rise {
