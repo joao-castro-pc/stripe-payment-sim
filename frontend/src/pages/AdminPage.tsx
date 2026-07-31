@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { toast } from 'sonner'
-import { listOrders, createOrder, deleteOrder, refundOrder, API_BASE, type OrderStatus, type Order } from '../api'
+import { listOrders, createOrder, deleteOrder, refundOrder } from '../orders/api'
+import type { OrderStatus, Order } from '../orders/types'
+import { API_BASE } from '../lib/http'
 
 // Cache one Intl.NumberFormat per currency. Constructing a formatter is costly,
 // and formatMoney runs once per order row on every table render — so we build it

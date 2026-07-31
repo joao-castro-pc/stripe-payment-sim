@@ -1,8 +1,12 @@
-import type { components } from '@/api-types'
-import type { AuthUser } from '../api'
+// Auth domain types + role helpers, derived from the backend's OpenAPI contract.
+
+import type { Schemas, Unwrap } from '@/lib/contract'
+
+// The signed-in user, derived from the backend's UserResponse contract.
+export type AuthUser = Unwrap<Schemas['UserResponse']>
 
 // The role union straight from the API contract: "Admin" | "Customer".
-export type UserRole = components['schemas']['UserRole']
+export type UserRole = Schemas['UserRole']
 
 // Runtime role values. A TypeScript type is erased at runtime, so you can't read a
 // value off `UserRole` — you need a real object somewhere. `satisfies` ties this to

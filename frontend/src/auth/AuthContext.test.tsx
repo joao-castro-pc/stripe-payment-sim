@@ -6,11 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthContext'
 import { RequireAuth } from '../components/RequireAuth'
 import LoginPage from '../pages/LoginPage'
-import * as api from '../api'
-import type { AuthUser } from '../api'
+import * as api from './api'
+import type { AuthUser } from './types'
 
 // Control the backend calls the auth layer makes.
-vi.mock('../api', () => ({
+vi.mock('./api', () => ({
   getMe: vi.fn(),
   login: vi.fn(),
   register: vi.fn(),
