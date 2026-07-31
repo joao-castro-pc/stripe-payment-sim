@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getMe, login as apiLogin, logout as apiLogout, type AuthUser } from '../api'
+import { getMe, login as apiLogin, logout as apiLogout, register as apiRegister, type AuthUser } from '../api'
 import { UserRole } from './roles'
 
 // Shared auth state for the whole app. `user` is null when signed out.
@@ -10,6 +10,7 @@ type AuthValue = {
   // of flashing the login page before we know if there's a session.
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -35,6 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   })
 
+  const registerM = useMutation({
+    mutationFn: ({ email, password }: { email: string; password: string }) => apiRegister(email, password),
+    onSuccess: (u) => {
+      // Registration signs the user in, so cache them just like login.
+      qc.setQueryData(['me'], u)
+      qc.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+
   const logoutM = useMutation({
     mutationFn: apiLogout,
     onSuccess: () => {
@@ -48,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: user ?? null,
     isLoading: isPending,
     login: async (email, password) => { await loginM.mutateAsync({ email, password }) },
+    register: async (email, password) => { await registerM.mutateAsync({ email, password }) },
     logout: async () => { await logoutM.mutateAsync() },
   }
 

@@ -22,10 +22,15 @@ type Schemas = components["schemas"];
 // "Pending" | "Paid" | "Failed" | "Refunded".
 export type OrderStatus = Schemas["OrderStatus"];
 
-// The backend marks every field optional/nullable in its OpenAPI schema, but a
-// persisted order always has them. This mapped type strips the "?" and null so
-// callers get clean, definite fields — still derived entirely from the contract.
-export type Order = { [K in keyof Schemas["Order"]]-?: NonNullable<Schemas["Order"][K]> };
+// The admin order list (GET /orders) returns OrderResponse: the order fields plus
+// the customer's email. The backend marks every field optional/nullable in the
+// schema, but a listed order always has the core fields — strip "?"/null on those
+// for clean access, while keeping customerEmail nullable (it's null for orders
+// placed before accounts existed).
+type OrderRaw = Schemas["OrderResponse"];
+export type Order =
+  { [K in keyof Omit<OrderRaw, "customerEmail">]-?: NonNullable<OrderRaw[K]> }
+  & { customerEmail: string | null };
 
 export async function listOrders(): Promise<Order[]> {
   const res = await fetch(`${API_BASE}/orders`, withCredentials);
@@ -92,6 +97,22 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? "Invalid email or password.");
+  }
+  return res.json();
+}
+
+// Register a new customer account (signs in on success). Throws the backend
+// message on 400/409 (invalid input / email taken).
+export async function register(email: string, password: string): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+    ...withCredentials,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? "Registration failed.");
   }
   return res.json();
 }

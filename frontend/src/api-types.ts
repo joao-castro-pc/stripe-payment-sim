@@ -54,6 +54,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a customer
+         * @description Creates a Customer account and signs them in. 400 on invalid input, 409 if the email is taken.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RegisterRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -146,7 +203,7 @@ export interface paths {
         };
         /**
          * List all orders
-         * @description Returns every order, newest first. Use it to see an order flip from Pending to Paid after a webhook.
+         * @description Returns every order, newest first, with the customer's email. Use it to see an order flip from Pending to Paid after a webhook.
          */
         get: {
             parameters: {
@@ -163,7 +220,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Order"][];
+                        "application/json": components["schemas"]["OrderResponse"][];
                     };
                 };
             };
@@ -399,16 +456,28 @@ export interface components {
             /** @description Account password (plaintext over HTTPS; verified against a stored hash). */
             password?: string | null;
         };
-        Order: {
-            /** Format: uuid */
+        /** @description An order as shown in the admin list, with the customer who placed it. */
+        OrderResponse: {
+            /**
+             * Format: uuid
+             * @description The order id.
+             */
             id?: string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Amount in the smallest currency unit (cents).
+             */
             amountCents?: number;
+            /** @description Lowercase ISO currency code, e.g. "eur". */
             currency?: string | null;
             status?: components["schemas"]["OrderStatus"];
-            stripePaymentIntentId?: string | null;
-            /** Format: date-time */
+            /**
+             * Format: date-time
+             * @description When the order was created (UTC).
+             */
             createdAt?: string;
+            /** @description Email of the account that placed it, or null if none. */
+            customerEmail?: string | null;
         };
         /** @enum {string} */
         OrderStatus: "Pending" | "Paid" | "Failed" | "Refunded";
@@ -433,6 +502,13 @@ export interface components {
             status?: string | null;
             /** @description Human-readable explanation the frontend can show. */
             message?: string | null;
+        };
+        /** @description Details for POST /auth/register. */
+        RegisterRequest: {
+            /** @description The new account's email (must be unique). */
+            email?: string | null;
+            /** @description The new account's password (min 6 chars). */
+            password?: string | null;
         };
         "String<>f__AnonymousType5": {
             status?: string | null;

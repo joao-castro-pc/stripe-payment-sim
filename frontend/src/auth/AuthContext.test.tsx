@@ -13,6 +13,7 @@ import type { AuthUser } from '../api'
 vi.mock('../api', () => ({
   getMe: vi.fn(),
   login: vi.fn(),
+  register: vi.fn(),
   logout: vi.fn(),
 }))
 

@@ -193,6 +193,7 @@ export default function AdminPage() {
             <thead>
               <tr className="border-b text-left text-xs uppercase text-muted-foreground">
                 <th className="px-4 py-3">Amount</th>
+                <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
                 <th className="px-4 py-3"></th>
@@ -202,6 +203,7 @@ export default function AdminPage() {
               {orders.map((o: Order) => (
                 <tr key={o.id} className="border-b border-border/60 last:border-0">
                   <td className="px-4 py-3 text-sm font-medium text-foreground">{formatMoney(o.amountCents, o.currency)}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{o.customerEmail ?? '—'}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{new Date(o.createdAt).toLocaleString()}</td>
                   <td className="px-4 py-3">

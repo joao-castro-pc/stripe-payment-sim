@@ -18,3 +18,21 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }
   return <>{children}</>
 }
+
+// Stricter guard for the admin dashboard: signed in AND an admin. A signed-in
+// customer is sent back to the store (they're authenticated, just not allowed).
+export function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user, isAdmin, isLoading } = useAuth()
+  const location = useLocation()
+
+  if (isLoading) {
+    return <p className="mx-auto max-w-6xl px-4 py-16 text-center text-muted-foreground">Loading…</p>
+  }
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />
+  }
+  if (!isAdmin) {
+    return <Navigate to="/" replace />
+  }
+  return <>{children}</>
+}

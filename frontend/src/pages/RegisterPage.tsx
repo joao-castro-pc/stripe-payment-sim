@@ -1,28 +1,26 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../auth/AuthContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default function LoginPage() {
-  const { login } = useAuth()
+export default function RegisterPage() {
+  const { register } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
-  // Where to go after login: back to the page that bounced us here, else /admin.
-  const from = (location.state as { from?: string } | null)?.from ?? '/admin'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
   const submit = useMutation({
-    mutationFn: () => login(email, password),
+    mutationFn: () => register(email, password),
     onSuccess: () => {
-      toast.success('Signed in')
-      navigate(from, { replace: true })
+      toast.success('Account created')
+      // Registration signs you in; go back to the store to shop.
+      navigate('/', { replace: true })
     },
-    onError: (e) => toast.error('Login failed', { description: (e as Error).message }),
+    onError: (e) => toast.error('Registration failed', { description: (e as Error).message }),
   })
 
   const onSubmit = (e: FormEvent) => {
@@ -34,7 +32,7 @@ export default function LoginPage() {
     <main className="mx-auto max-w-sm px-4 py-16">
       <Card>
         <CardHeader>
-          <CardTitle>Sign in</CardTitle>
+          <CardTitle>Create an account</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -53,20 +51,22 @@ export default function LoginPage() {
               <span className="text-sm font-medium text-muted-foreground">Password</span>
               <input
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
                 className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
               />
+              <span className="text-xs text-muted-foreground">At least 6 characters.</span>
             </label>
             <Button type="submit" className="w-full" disabled={submit.isPending}>
-              {submit.isPending ? 'Signing in…' : 'Sign in'}
+              {submit.isPending ? 'Creating…' : 'Create account'}
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            No account?{' '}
-            <Link to="/register" className="font-medium text-indigo-600 hover:underline">Create one</Link>
+            Already have an account?{' '}
+            <Link to="/login" className="font-medium text-indigo-600 hover:underline">Sign in</Link>
           </p>
         </CardContent>
       </Card>

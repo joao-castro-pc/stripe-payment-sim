@@ -3,11 +3,12 @@ import StorePage from './pages/StorePage'
 import AdminPage from './pages/AdminPage'
 import CheckoutPage from './pages/CheckoutPage'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import { CartSheet } from './components/CartSheet'
 import { Logo } from './components/Logo'
 import { ThemeToggle } from './components/ThemeToggle'
 import { CurrencySelect } from './components/CurrencySelect'
-import { RequireAuth } from './components/RequireAuth'
+import { RequireAuth, RequireAdmin } from './components/RequireAuth'
 import { useAuth } from './auth/AuthContext'
 import { Button } from '@/components/ui/button'
 
@@ -85,9 +86,10 @@ export default function App() {
       <Routes>
         <Route path="/" element={<StorePage />} />
         <Route path="/login" element={<LoginPage />} />
-        {/* Buying requires a signed-in user; so does the admin dashboard. */}
+        <Route path="/register" element={<RegisterPage />} />
+        {/* Buying requires any signed-in user; the admin dashboard requires an admin. */}
         <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
-        <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
       </Routes>
     </div>
   )
