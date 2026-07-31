@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { toast } from 'sonner'
 import { listOrders, createOrder, deleteOrder, refundOrder } from '../orders/api'
-import type { OrderStatus, Order } from '../orders/types'
+import type { OrderStatus } from '../orders/types'
 import { API_BASE } from '../lib/http'
 
 // Cache one Intl.NumberFormat per currency. Constructing a formatter is costly,
@@ -202,7 +202,7 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody>
-              {orders.map((o: Order) => (
+              {orders.map((o) => (
                 <tr key={o.id} className="border-b border-border/60 last:border-0">
                   <td className="px-4 py-3 text-sm font-medium text-foreground">{formatMoney(o.amountCents, o.currency)}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{o.customerEmail ?? '—'}</td>

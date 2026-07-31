@@ -2,7 +2,7 @@
 // @/lib/http.
 
 import { fetchJson, postJson, API_BASE } from '@/lib/http'
-import type { Order, CreateOrderResponse, RefundResponse } from './types'
+import type { CreateOrderResponse, Order, RefundResponse } from './types'
 
 export function listOrders(): Promise<Order[]> {
   return fetchJson<Order[]>('/orders')
