@@ -137,6 +137,11 @@ export default function AdminPage() {
     // so treat the cache as fresh for 30s: skip the redundant automatic refetches
     // (window refocus, reconnect) that would otherwise duplicate the SSE refresh.
     staleTime: 30_000,
+    // ...but ALWAYS refetch when the page mounts. SSE only delivers changes that
+    // happen while you're viewing /admin; an order paid elsewhere (e.g. the store
+    // checkout) before you navigate here would otherwise show stale cached data
+    // until a manual refresh. This guarantees a fresh list on arrival.
+    refetchOnMount: 'always',
   })
 
   const del = useMutation({
