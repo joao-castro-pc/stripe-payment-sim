@@ -12,7 +12,7 @@ export type UserRole = components['schemas']['UserRole']
 export const UserRole = {
   Admin: 'Admin',
   Customer: 'Customer',
-} as const satisfies Record<string, UserRole>
+} as const satisfies Record<UserRole, UserRole>
 
 // UX-only role check: use it to show/hide bits of UI. Real authorization is enforced
 // server-side (the cookie's role claim) — a client check is never a security boundary.

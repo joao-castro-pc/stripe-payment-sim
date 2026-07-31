@@ -9,7 +9,6 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { CurrencySelect } from './components/CurrencySelect'
 import { RequireAuth } from './components/RequireAuth'
 import { useAuth } from './auth/AuthContext'
-import { isAdmin } from './auth/roles'
 import { Button } from '@/components/ui/button'
 
 // Two faces of the same system, split by route:
@@ -61,7 +60,8 @@ function AuthControls() {
 }
 
 export default function App() {
-  const { user } = useAuth()
+  const { isAdmin } = useAuth()
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -71,7 +71,7 @@ export default function App() {
           </Link>
           <NavTab to="/">Store</NavTab>
           {/* Admin tab only for admins (UX only — the route is guarded server-side too). */}
-          {isAdmin(user) && <NavTab to="/admin">Admin</NavTab>}
+          {isAdmin && <NavTab to="/admin">Admin</NavTab>}
           {/* Currency + theme + cart + auth, available on every route. */}
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <CurrencySelect />

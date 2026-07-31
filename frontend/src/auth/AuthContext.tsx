@@ -1,6 +1,7 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getMe, login as apiLogin, logout as apiLogout, type AuthUser } from '../api'
+import { UserRole } from './roles'
 
 // Shared auth state for the whole app. `user` is null when signed out.
 type AuthValue = {
@@ -56,6 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext)
+  const isAdmin = ctx?.user?.role === UserRole.Admin
+
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
-  return ctx
+    
+  return {...ctx, isAdmin}
 }
