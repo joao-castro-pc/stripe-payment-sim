@@ -142,12 +142,11 @@
     }
 }
 
-/* Toast lives at the bottom (see <Toaster position="bottom-center">), the mobile
-   convention, so it never covers the sticky top nav. Sonner handles the slide-up
-   in/out; we only tune size on mobile below. */
+/* Toast sits top-right, offset below the sticky nav (see <Toaster>). Sonner
+   handles the slide in/out; we only tune size on mobile below. */
 
-/* Mobile: trim the default toast (~356px, chunky padding) to a compact, centred
-   snackbar — capped by the viewport, with tighter padding and type. */
+/* Mobile: trim the default toast (~356px, chunky padding) to a compact width —
+   capped by the viewport, with tighter padding and type. */
 @media (max-width: 600px) {
   [data-sonner-toaster] [data-sonner-toast] {
     width: min(20rem, calc(100vw - 1.5rem)) !important;
