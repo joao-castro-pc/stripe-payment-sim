@@ -168,6 +168,33 @@
   animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.3);
 }
 
+/* Mobile: sonner defaults toasts to full width below 600px, which on a phone is a
+   big slab that hogs the screen. Shrink it to a compact pill — width sized to its
+   content, anchored to the left margin (never wider than the screen), with tighter
+   padding and type. */
+@media (max-width: 600px) {
+  [data-sonner-toaster] {
+    left: 0.75rem !important;
+    right: 0.75rem !important;
+  }
+  [data-sonner-toaster] [data-sonner-toast] {
+    width: auto !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+  }
+  [data-sonner-toast] [data-title] {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+  [data-sonner-toast] [data-description] {
+    font-size: 12px;
+  }
+  [data-sonner-toast] [data-icon] {
+    width: 16px;
+    height: 16px;
+  }
+}
+
 /* Radix (the cart Sheet / any dialog) locks body scroll on open and, to hide the
    now-removed scrollbar's gap, adds `margin-right: <scrollbar>px` to the body. But
    we already reserve that gap permanently with `scrollbar-gutter: stable` (on
