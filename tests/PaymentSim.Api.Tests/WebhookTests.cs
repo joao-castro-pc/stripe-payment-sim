@@ -124,6 +124,41 @@ public class WebhookTests
         Assert.True(EventWasRecorded(factory, "evt_late_fail"));
     }
 
+    [Fact]
+    public async Task Webhook_succeeded_after_failed_marks_order_paid()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+        // With the Payment Element a single PaymentIntent survives a declined card:
+        // Stripe emits payment_failed (order -> Failed) then payment_intent.succeeded
+        // when the customer retries with a good card. The order must recover to Paid,
+        // not stay Failed while the card was actually charged.
+        var orderId = SeedOrder(factory, paymentIntentId: "pi_retry", status: OrderStatus.Failed);
+
+        var payload = EventJson("evt_retry_ok", EventTypes.PaymentIntentSucceeded, "pi_retry");
+        var response = await PostWebhook(client, payload, Sign(payload));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(OrderStatus.Paid, GetOrder(factory, orderId).Status);
+    }
+
+    [Fact]
+    public async Task Webhook_with_no_matching_order_returns_503_and_records_nothing()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+        // No order references pi_missing. The handler retries, finds nothing, and must
+        // NOT ack Stripe (200) nor record the event: a 2xx would tell Stripe to stop
+        // retrying and could strand a real order that commits just after the retry
+        // window. 503 makes Stripe redeliver later; leaving the event unrecorded lets
+        // that redelivery actually be processed.
+        var payload = EventJson("evt_orphan", EventTypes.PaymentIntentSucceeded, "pi_missing");
+        var response = await PostWebhook(client, payload, Sign(payload));
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal(0, CountEvents(factory, "evt_orphan"));
+    }
+
     // --- helpers ---------------------------------------------------------
 
     private const string Secret = TestAppFactory.WebhookSecret;
