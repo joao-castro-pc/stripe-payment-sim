@@ -149,9 +149,10 @@ export default function StorePage() {
 
       {products && (
         <>
-          {/* Search + categories */}
-          <div className="mb-6 flex flex-col gap-4">
-            <div className="relative max-w-md">
+          {/* Search + category. ~24 categories as chips ate three rows, so the
+              category filter is a compact dropdown that sits beside the search. */}
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative sm:max-w-md sm:flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
@@ -162,27 +163,19 @@ export default function StorePage() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant={category === 'all' ? 'default' : 'outline'}
-                size="sm"
-                className="rounded-full"
-                onClick={() => setCategory('all')}
-              >
-                All
-              </Button>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              aria-label="Category"
+              className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm capitalize text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 sm:w-56"
+            >
+              <option value="all">All categories</option>
               {categories.map((c) => (
-                <Button
-                  key={c}
-                  variant={category === c ? 'default' : 'outline'}
-                  size="sm"
-                  className="rounded-full capitalize"
-                  onClick={() => setCategory(c)}
-                >
+                <option key={c} value={c} className="capitalize">
                   {c}
-                </Button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           {/* Result count in mono — small "data" detail. */}

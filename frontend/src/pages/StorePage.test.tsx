@@ -58,11 +58,11 @@ describe('StorePage filtering', () => {
     expect(screen.getByText('Office Chair')).toBeInTheDocument()
   })
 
-  it('filters by clicking a category chip', async () => {
+  it('filters by picking a category from the dropdown', async () => {
     renderStore()
     await screen.findByText('Red Lipstick')
 
-    await userEvent.click(screen.getByRole('button', { name: 'furniture' }))
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: /category/i }), 'furniture')
 
     expect(screen.getByText('Office Chair')).toBeInTheDocument()
     expect(screen.queryByText('Red Lipstick')).not.toBeInTheDocument()
