@@ -109,9 +109,6 @@ export default function StorePage() {
             check out for real on Stripe, safely in test mode.
           </p>
           <div className="mx-auto mt-10 h-px w-24 bg-gold/40" />
-          <p className="mt-6 font-mono text-[11px] tracking-[0.2em] text-[#6f6a5e]">
-            4242&nbsp;4242&nbsp;4242&nbsp;4242 · ANY DATE · ANY CVC
-          </p>
         </div>
       </section>
 
