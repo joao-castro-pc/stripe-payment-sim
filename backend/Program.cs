@@ -127,6 +127,20 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
 
+    // EnsureCreated only builds the schema when the database file is brand new.
+    // The existing dev/prod databases predate the Users table, so EnsureCreated
+    // won't add it — create it explicitly (idempotent). A production app would use
+    // EF Core migrations for schema changes; that's tracked as a follow-up.
+    db.Database.ExecuteSqlRaw(
+        @"CREATE TABLE IF NOT EXISTS ""Users"" (
+            ""Id"" TEXT NOT NULL CONSTRAINT ""PK_Users"" PRIMARY KEY,
+            ""Email"" TEXT NOT NULL,
+            ""PasswordHash"" TEXT NOT NULL,
+            ""Role"" TEXT NOT NULL,
+            ""CreatedAt"" TEXT NOT NULL);");
+    db.Database.ExecuteSqlRaw(
+        @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Users_Email"" ON ""Users"" (""Email"");");
+
     var adminEmail = builder.Configuration["Admin:Email"]?.Trim().ToLowerInvariant();
     var adminPassword = builder.Configuration["Admin:Password"];
     var seedLog = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Seed");
