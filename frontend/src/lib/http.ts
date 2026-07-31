@@ -67,3 +67,13 @@ export function postJson<T>(path: string, data: unknown, init: JsonInit = {}): P
     ...init,
   })
 }
+
+// Same as postJson but for a partial update (PATCH) — e.g. editing one profile field.
+export function patchJson<T>(path: string, data: unknown, init: JsonInit = {}): Promise<T> {
+  return fetchJson<T>(path, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    ...init,
+  })
+}

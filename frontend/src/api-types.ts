@@ -191,7 +191,48 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update current user
+         * @description Updates the signed-in user's display name and refreshes the auth cookie. 400 on invalid input, 401 if signed out.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateProfileRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         trace?: never;
     };
     "/orders": {
@@ -630,6 +671,11 @@ export interface components {
         };
         "String<>f__AnonymousType6": {
             status?: string | null;
+        };
+        /** @description Editable profile fields for PATCH /auth/me. */
+        UpdateProfileRequest: {
+            /** @description The user's new display name (1–100 chars). */
+            name?: string | null;
         };
         /** @description The signed-in user, returned by login and /auth/me. */
         UserResponse: {

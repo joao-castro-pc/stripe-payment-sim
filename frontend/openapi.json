@@ -112,6 +112,41 @@
             "description": "Unauthorized"
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Update current user",
+        "description": "Updates the signed-in user's display name and refreshes the auth cookie. 400 on invalid input, 401 if signed out.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
       }
     },
     "/orders": {
@@ -594,6 +629,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The user's new display name (1–100 chars).",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Editable profile fields for PATCH /auth/me."
       },
       "UserResponse": {
         "type": "object",

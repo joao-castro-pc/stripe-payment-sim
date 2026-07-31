@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getMe, login as apiLogin, logout as apiLogout, register as apiRegister } from './api'
+import { getMe, login as apiLogin, logout as apiLogout, register as apiRegister, updateProfile as apiUpdateProfile } from './api'
 import { isAdmin as computeIsAdmin, type AuthUser } from './types'
 
 // Shared auth state for the whole app. `user` is null when signed out.
@@ -11,6 +11,7 @@ type AuthValue = {
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, name: string) => Promise<void>
+  updateProfile: (name: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -45,6 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   })
 
+  const updateProfileM = useMutation({
+    mutationFn: (name: string) => apiUpdateProfile(name),
+    onSuccess: (u) => {
+      // The backend re-issued the cookie; mirror the fresh user into the cache so
+      // the nav/account update without a refetch.
+      qc.setQueryData(['me'], u)
+    },
+  })
+
   const logoutM = useMutation({
     mutationFn: apiLogout,
     onSuccess: () => {
@@ -59,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading: isPending,
     login: async (email, password) => { await loginM.mutateAsync({ email, password }) },
     register: async (email, password, name) => { await registerM.mutateAsync({ email, password, name }) },
+    updateProfile: async (name) => { await updateProfileM.mutateAsync(name) },
     logout: async () => { await logoutM.mutateAsync() },
   }
 

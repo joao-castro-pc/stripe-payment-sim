@@ -206,5 +206,44 @@ public class AuthTests
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
     }
 
+    [Fact]
+    public async Task Update_name_without_auth_returns_401()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+
+        var res = await client.PatchAsJsonAsync("/auth/me", new { name = "Whoever" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_name_empty_returns_400()
+    {
+        using var factory = new TestAppFactory();
+        var client = await factory.CreateCustomerClientAsync();
+
+        var res = await client.PatchAsJsonAsync("/auth/me", new { name = "   " });
+
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_name_persists_and_refreshes_the_cookie()
+    {
+        using var factory = new TestAppFactory();
+        var client = await factory.CreateCustomerClientAsync();
+
+        var res = await client.PatchAsJsonAsync("/auth/me", new { name = "Renamed Shopper" });
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        var updated = await res.Content.ReadFromJsonAsync<UserDto>();
+        Assert.Equal("Renamed Shopper", updated!.Name);
+
+        // The cookie was re-issued, so /auth/me reflects the new name WITHOUT a
+        // re-login (the name lives in the GivenName claim, not just the DB row).
+        var me = await (await client.GetAsync("/auth/me")).Content.ReadFromJsonAsync<UserDto>();
+        Assert.Equal("Renamed Shopper", me!.Name);
+    }
+
     private record UserDto(string Email, string Name, string Role);
 }

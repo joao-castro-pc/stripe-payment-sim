@@ -1,7 +1,7 @@
 // Auth API calls. Types live in ./types; transport (cookies, timeout, errors) in
 // @/lib/http.
 
-import { postJson, API_BASE } from '@/lib/http'
+import { postJson, patchJson, API_BASE } from '@/lib/http'
 import type { AuthUser } from './types'
 
 // Sign in. Throws the backend message on 401 (wrong credentials).
@@ -13,6 +13,12 @@ export function login(email: string, password: string): Promise<AuthUser> {
 // message on 400/409 (invalid input / email taken).
 export function register(email: string, password: string, name: string): Promise<AuthUser> {
   return postJson<AuthUser>('/auth/register', { email, password, name }, { fallbackError: 'Registration failed.' })
+}
+
+// Update the signed-in user's display name. Returns the refreshed user. Throws the
+// backend message on 400 (invalid name).
+export function updateProfile(name: string): Promise<AuthUser> {
+  return patchJson<AuthUser>('/auth/me', { name }, { fallbackError: 'Could not update your profile.' })
 }
 
 // Sign out. Clears the auth cookie server-side. Best-effort — ignore the result.

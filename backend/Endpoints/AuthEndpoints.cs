@@ -125,6 +125,44 @@ public static class AuthEndpoints
             .WithDescription("Returns the signed-in user, or 401 if there's no active session.")
             .Produces<UserResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
+
+        // Update the signed-in user's own profile (currently just the display name).
+        // We re-issue the cookie afterwards so the GivenName claim — which /auth/me
+        // reads — reflects the new name immediately, without a fresh login. Same name
+        // validation as register, kept in sync deliberately.
+        app.MapPatch("/auth/me", async (
+            UpdateProfileRequest req,
+            AppDbContext db,
+            HttpContext http) =>
+        {
+            var name = (req.Name ?? "").Trim();
+            if (name.Length == 0)
+                return Results.BadRequest(new { error = "A name is required." });
+            if (name.Length > 100)
+                return Results.BadRequest(new { error = "Name must be 100 characters or fewer." });
+
+            // Trust the identity in the cookie, not a body field, for WHO to update —
+            // a user can only ever edit their own account.
+            if (!Guid.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id))
+                return Results.Unauthorized();
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id);
+            if (user is null) return Results.Unauthorized();
+
+            user.Name = name;
+            await db.SaveChangesAsync();
+
+            // Refresh the cookie so the name claim isn't stale until next login.
+            await IssueCookie(http, user);
+            log.LogInformation("✏️ Updated profile for {Email}", user.Email);
+            return Results.Ok(new UserResponse(user.Email, user.Name, user.Role));
+        })
+            .RequireAuthorization()
+            .WithTags("Auth")
+            .WithSummary("Update current user")
+            .WithDescription("Updates the signed-in user's display name and refreshes the auth cookie. 400 on invalid input, 401 if signed out.")
+            .Produces<UserResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status401Unauthorized);
     }
 
     // Serialize the user's identity (id, email, role) into the encrypted, HttpOnly
@@ -153,6 +191,10 @@ public record LoginRequest(string Email, string Password);
 /// <param name="Password">The new account's password (min 6 chars).</param>
 /// <param name="Name">The new account's display name.</param>
 public record RegisterRequest(string Email, string Password, string Name);
+
+/// <summary>Editable profile fields for PATCH /auth/me.</summary>
+/// <param name="Name">The user's new display name (1–100 chars).</param>
+public record UpdateProfileRequest(string Name);
 
 /// <summary>The signed-in user, returned by login and /auth/me.</summary>
 /// <param name="Email">The user's email.</param>
