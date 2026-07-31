@@ -27,7 +27,7 @@ export function CartSheet() {
           <ShoppingCart className="size-4" />
           <span className="hidden sm:inline">Cart</span>
           {count > 0 && (
-            <Badge className="ml-1 rounded-full px-1.5">{count}</Badge>
+            <Badge key={count} className="ml-1 animate-badge-pop rounded-full px-1.5">{count}</Badge>
           )}
         </Button>
       </SheetTrigger>

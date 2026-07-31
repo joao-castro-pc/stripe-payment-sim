@@ -192,11 +192,21 @@ html body[data-scroll-locked] {
 .animate-rise-1 { animation: rise 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) both; animation-delay: 0.05s; }
 .animate-rise-2 { animation: rise 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) both; animation-delay: 0.1s; }
 
+/* Cart badge pop: a quick scale bump when the count changes, so adding to the cart
+   gets a glance-able confirmation without a toast. Retriggered via key={count}. */
+@keyframes badge-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.animate-badge-pop { animation: badge-pop 0.3s ease-out; }
+
 /* Respect users who ask for less motion: no entrance animation, no toast slide. */
 @media (prefers-reduced-motion: reduce) {
   .animate-rise,
   .animate-rise-1,
   .animate-rise-2,
+  .animate-badge-pop,
   [data-sonner-toast] {
     animation: none !important;
   }

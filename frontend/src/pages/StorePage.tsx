@@ -1,24 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { Search } from 'lucide-react'
 import { fetchProducts, fetchCategories, type Product } from '@/dummyjson'
-import { useCart } from '@/cart/CartContext'
 import { useCurrency } from '@/currency/CurrencyContext'
 import { Stars } from '@/components/Stars'
-import { Button } from '@/components/ui/button'
+import { AddToCartButton } from '@/components/AddToCartButton'
 
 const PAGE_SIZE = 24
 
 function ProductCard({ product }: { product: Product }) {
-  const { add } = useCart()
   const { format } = useCurrency()
-
-  const addToCart = () => {
-    add(product)
-    toast.success('Added to cart', { description: product.title })
-  }
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition duration-300 hover:-translate-y-1 hover:border-gold/40 hover:shadow-xl">
@@ -51,14 +43,10 @@ function ProductCard({ product }: { product: Product }) {
         </div>
       </Link>
       <div className="p-5 pt-4">
-        <Button
-          size="sm"
-          variant="outline"
+        <AddToCartButton
+          product={product}
           className="w-full border-gold/30 hover:border-gold hover:bg-gold/5"
-          onClick={addToCart}
-        >
-          Add to cart
-        </Button>
+        />
       </div>
     </div>
   )

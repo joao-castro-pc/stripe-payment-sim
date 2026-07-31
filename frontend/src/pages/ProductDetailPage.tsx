@@ -1,19 +1,17 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { toast } from 'sonner'
 import { ArrowLeft } from 'lucide-react'
 import { getProduct } from '@/dummyjson'
-import { useCart } from '@/cart/CartContext'
 import { useCurrency } from '@/currency/CurrencyContext'
 import { Stars } from '@/components/Stars'
 import { Button } from '@/components/ui/button'
+import { AddToCartButton } from '@/components/AddToCartButton'
 
 // Public product-detail page (route /product/:id). Fetches the single product
 // from DummyJSON for the full gallery + description the list doesn't carry.
 export default function ProductDetailPage() {
   const { id = '' } = useParams()
-  const { add } = useCart()
   const { format } = useCurrency()
   const navigate = useNavigate()
 
@@ -95,16 +93,13 @@ export default function ProductDetailPage() {
               </span>
             </div>
 
-            <Button
+            <AddToCartButton
+              product={product}
+              variant="default"
+              size="default"
               className="mt-5 w-full"
               disabled={product.stock <= 0}
-              onClick={() => {
-                add(product)
-                toast.success('Added to cart', { description: product.title })
-              }}
-            >
-              Add to cart
-            </Button>
+            />
           </div>
         </div>
       )}
