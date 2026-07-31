@@ -16,6 +16,18 @@ const config = {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    // Proxy the API paths to the backend during dev so the browser sees a SINGLE
+    // origin (localhost:5173) — exactly like the production monolith. That makes
+    // the auth cookie "just work" (same-origin) with no CORS and no SameSite=None
+    // dance, and keeps dev behaviour identical to prod.
+    proxy: {
+      '/auth': 'http://localhost:5144',
+      '/orders': 'http://localhost:5144',
+      '/health': 'http://localhost:5144',
+      '/webhook': 'http://localhost:5144',
+    },
+  },
   test: {
     // jsdom gives us a browser-like DOM so React components can render in Node.
     environment: 'jsdom',

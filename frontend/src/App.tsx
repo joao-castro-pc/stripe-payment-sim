@@ -1,11 +1,15 @@
-import { Link, NavLink, Route, Routes } from 'react-router-dom'
+import { Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import StorePage from './pages/StorePage'
 import AdminPage from './pages/AdminPage'
 import CheckoutPage from './pages/CheckoutPage'
+import LoginPage from './pages/LoginPage'
 import { CartSheet } from './components/CartSheet'
 import { Logo } from './components/Logo'
 import { ThemeToggle } from './components/ThemeToggle'
 import { CurrencySelect } from './components/CurrencySelect'
+import { RequireAuth } from './components/RequireAuth'
+import { useAuth } from './auth/AuthContext'
+import { Button } from '@/components/ui/button'
 
 // Two faces of the same system, split by route:
 //   /       -> the customer storefront (fake products, cart, pay via our API)
@@ -29,6 +33,32 @@ function NavTab({ to, children }: { to: string; children: React.ReactNode }) {
   )
 }
 
+// Sign-in state in the nav: the user's email + a logout button when signed in,
+// otherwise a link to the login page.
+function AuthControls() {
+  const { user, logout, isLoading } = useAuth()
+  const navigate = useNavigate()
+
+  if (isLoading) return null
+  if (!user) {
+    return <NavTab to="/login">Sign in</NavTab>
+  }
+  return (
+    <div className="flex items-center gap-1 sm:gap-2">
+      <span className="hidden max-w-[12ch] truncate text-sm text-muted-foreground md:inline" title={user.email}>
+        {user.email}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={async () => { await logout(); navigate('/') }}
+      >
+        Sign out
+      </Button>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <div className="min-h-screen bg-background">
@@ -39,19 +69,22 @@ export default function App() {
           </Link>
           <NavTab to="/">Store</NavTab>
           <NavTab to="/admin">Admin</NavTab>
-          {/* Currency + theme + cart, available on every route. */}
+          {/* Currency + theme + cart + auth, available on every route. */}
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <CurrencySelect />
             <ThemeToggle />
             <CartSheet />
+            <AuthControls />
           </div>
         </nav>
       </header>
 
       <Routes>
         <Route path="/" element={<StorePage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        {/* Buying requires a signed-in user; so does the admin dashboard. */}
+        <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth><AdminPage /></RequireAuth>} />
       </Routes>
     </div>
   )

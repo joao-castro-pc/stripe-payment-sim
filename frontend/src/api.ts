@@ -4,13 +4,17 @@
 
 import type { components } from "./api-types";
 
-// Where the backend lives. In the single-container production deploy the API and
-// the SPA share one origin, so the base is "" (same-origin, relative fetches). In
-// local dev the API runs on a different port, so default to it. Override with
-// VITE_API_BASE at build time if you split the frontend and backend onto separate
-// hosts.
+// Where the backend lives. Both in the production monolith AND in dev (via the
+// Vite proxy, see vite.config.ts) the API and SPA share one origin, so the base is
+// "" (same-origin, relative fetches). Same-origin is what lets the auth cookie flow
+// automatically. Override with VITE_API_BASE only if you split FE and BE onto
+// separate hosts (then you also need CORS with credentials on the backend).
 const configuredBase = import.meta.env.VITE_API_BASE as string | undefined;
-export const API_BASE = configuredBase ?? (import.meta.env.DEV ? "http://localhost:5144" : "");
+export const API_BASE = configuredBase ?? "";
+
+// Every request opts into sending/receiving cookies. Same-origin would send them
+// anyway, but being explicit keeps it correct if VITE_API_BASE points elsewhere.
+const withCredentials: RequestInit = { credentials: "include" };
 
 type Schemas = components["schemas"];
 
@@ -24,7 +28,7 @@ export type OrderStatus = Schemas["OrderStatus"];
 export type Order = { [K in keyof Schemas["Order"]]-?: NonNullable<Schemas["Order"][K]> };
 
 export async function listOrders(): Promise<Order[]> {
-  const res = await fetch(`${API_BASE}/orders`);
+  const res = await fetch(`${API_BASE}/orders`, withCredentials);
   if (!res.ok) throw new Error(`GET /orders failed: ${res.status}`);
   return res.json();
 }
@@ -35,7 +39,7 @@ export type CreateOrderResponse = { [K in keyof Schemas["CreateOrderResponse"]]-
 
 // Delete one order. The backend requires ?confirm=true (guarded dev endpoint).
 export async function deleteOrder(id: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/orders/${id}?confirm=true`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/orders/${id}?confirm=true`, { method: "DELETE", ...withCredentials });
   if (!res.ok) throw new Error(`DELETE /orders/${id} failed: ${res.status}`);
 }
 
@@ -46,7 +50,7 @@ export type RefundResponse = { [K in keyof Schemas["RefundResponse"]]-?: NonNull
 // Refund a paid order. Returns the pending-refund body immediately; the order
 // flips to Refunded only when the charge.refunded webhook arrives (see backend).
 export async function refundOrder(id: string): Promise<RefundResponse> {
-  const res = await fetch(`${API_BASE}/orders/${id}/refund`, { method: "POST" });
+  const res = await fetch(`${API_BASE}/orders/${id}/refund`, { method: "POST", ...withCredentials });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `POST /orders/${id}/refund failed: ${res.status}`);
@@ -62,11 +66,46 @@ export async function createOrder(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ amountCents, currency }),
+    ...withCredentials,
   });
   if (!res.ok) {
     // Backend sends { error: "..." } on 400 — surface it.
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `POST /orders failed: ${res.status}`);
   }
+  return res.json();
+}
+
+// --- Auth --------------------------------------------------------------------
+
+// The signed-in user, derived from the backend's UserResponse contract.
+export type AuthUser = { [K in keyof Schemas["UserResponse"]]-?: NonNullable<Schemas["UserResponse"][K]> };
+
+// Sign in. Throws with the backend message on 401 (wrong credentials).
+export async function login(email: string, password: string): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+    ...withCredentials,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? "Invalid email or password.");
+  }
+  return res.json();
+}
+
+// Sign out. Clears the auth cookie server-side.
+export async function logout(): Promise<void> {
+  await fetch(`${API_BASE}/auth/logout`, { method: "POST", ...withCredentials });
+}
+
+// Current user, or null when signed out (the backend answers 401). Returning null
+// instead of throwing lets the auth query model "logged out" as data, not error.
+export async function getMe(): Promise<AuthUser | null> {
+  const res = await fetch(`${API_BASE}/auth/me`, withCredentials);
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`GET /auth/me failed: ${res.status}`);
   return res.json();
 }
