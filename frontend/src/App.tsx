@@ -1,4 +1,4 @@
-import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import StorePage from './pages/StorePage'
 import ProductDetailPage from './pages/ProductDetailPage'
 import AdminPage from './pages/AdminPage'
@@ -10,9 +10,10 @@ import { CartSheet } from './components/CartSheet'
 import { Logo } from './components/Logo'
 import { ThemeToggle } from './components/ThemeToggle'
 import { CurrencySelect } from './components/CurrencySelect'
+import { AccountMenu } from './components/AccountMenu'
+import { ScrollToTop } from './components/ScrollToTop'
 import { RequireAuth, RequireAdmin } from './components/RequireAuth'
 import { useAuth } from './auth/AuthContext'
-import { Button } from '@/components/ui/button'
 
 // Two faces of the same system, split by route:
 //   /       -> the customer storefront (fake products, cart, pay via our API)
@@ -36,32 +37,6 @@ function NavTab({ to, children }: { to: string; children: React.ReactNode }) {
   )
 }
 
-// Sign-in state in the nav: the user's email + a logout button when signed in,
-// otherwise a link to the login page.
-function AuthControls() {
-  const { user, logout, isLoading } = useAuth()
-  const navigate = useNavigate()
-
-  if (isLoading) return null
-  if (!user) {
-    return <NavTab to="/login">Sign in</NavTab>
-  }
-  return (
-    <div className="flex items-center gap-1 sm:gap-2">
-      <span className="hidden max-w-[12ch] truncate text-sm text-muted-foreground md:inline" title={user.email}>
-        {user.email}
-      </span>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={async () => { await logout(); navigate('/') }}
-      >
-        Sign out
-      </Button>
-    </div>
-  )
-}
-
 export default function App() {
   const { isAdmin } = useAuth()
   // Re-mounts the routed content on every navigation so it fades up into place.
@@ -69,20 +44,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <nav className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3 sm:gap-2">
+      {/* Sticky so the nav stays reachable while scrolling the product grid.
+          flex-wrap is a safety net: if the row can't fit a very narrow screen the
+          action cluster wraps to a second line instead of clipping (the old bug). */}
+      <header className="sticky top-0 z-40 border-b bg-card">
+        <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-1 gap-y-2 px-3 py-3 sm:gap-2 sm:px-4">
           <Link to="/" className="mr-1 shrink-0 sm:mr-2">
             <Logo />
           </Link>
           <NavTab to="/">Store</NavTab>
           {/* Admin tab only for admins (UX only — the route is guarded server-side too). */}
           {isAdmin && <NavTab to="/admin">Admin</NavTab>}
-          {/* Currency + theme + cart + auth, available on every route. */}
+          {/* Currency + theme + cart + account, available on every route. */}
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
             <CurrencySelect />
             <ThemeToggle />
             <CartSheet />
-            <AuthControls />
+            <AccountMenu />
           </div>
         </nav>
       </header>
@@ -99,6 +77,8 @@ export default function App() {
           <Route path="/admin/orders/:id" element={<RequireAdmin><OrderDetailPage /></RequireAdmin>} />
         </Routes>
       </div>
+
+      <ScrollToTop />
     </div>
   )
 }
