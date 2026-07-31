@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Search } from 'lucide-react'
@@ -65,26 +65,36 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export default function StorePage() {
-  const [category, setCategory] = useState('all')
-  const [query, setQuery] = useState('')
-  // Debounce the search text so we fire one request after the user pauses, not one
-  // per keystroke.
-  const [debouncedQuery, setDebouncedQuery] = useState('')
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300)
-    return () => clearTimeout(t)
-  }, [query])
+  // The active filter lives in the URL (?category=… / ?q=…), not local state, so it
+  // survives navigating to a product and back — the browser restores the query
+  // string, and react-query still has the loaded pages cached under the same key.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const category = searchParams.get('category') ?? 'all'
+  const activeQuery = searchParams.get('q') ?? ''
 
-  // Search and category are mutually exclusive: typing a search clears the category,
-  // picking a category clears the search. Keeps the server query single-mode.
-  const onSearch = (v: string) => {
-    setQuery(v)
-    if (v) setCategory('all')
-  }
+  // Local input text for immediate typing; seeded from the URL and kept in sync when
+  // the URL changes from outside (back/forward navigation).
+  const [query, setQuery] = useState(activeQuery)
+  useEffect(() => {
+    setQuery(activeQuery)
+  }, [activeQuery])
+
+  // Debounce: after the user pauses, push the search into the URL (replace, so each
+  // keystroke doesn't add a back-history entry). Writing only `q` drops any category
+  // — search and category stay mutually exclusive (single-mode server query).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const trimmed = query.trim()
+      if (trimmed === activeQuery) return
+      setSearchParams(trimmed ? { q: trimmed } : {}, { replace: true })
+    }, 300)
+    return () => clearTimeout(t)
+  }, [query, activeQuery, setSearchParams])
+
+  const onSearch = (v: string) => setQuery(v)
   const onCategory = (c: string) => {
-    setCategory(c)
     setQuery('')
-    setDebouncedQuery('')
+    setSearchParams(c === 'all' ? {} : { category: c })
   }
 
   // Category slugs for the dropdown (static catalog → cache forever).
@@ -99,9 +109,9 @@ export default function StorePage() {
   // switching search/category starts a fresh paged list.
   const { data, isPending, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: ['products', { q: debouncedQuery, category }],
+      queryKey: ['products', { q: activeQuery, category }],
       queryFn: ({ pageParam }) =>
-        fetchProducts({ q: debouncedQuery, category, limit: PAGE_SIZE, skip: pageParam }),
+        fetchProducts({ q: activeQuery, category, limit: PAGE_SIZE, skip: pageParam }),
       initialPageParam: 0,
       getNextPageParam: (lastPage, allPages) => {
         const loaded = allPages.reduce((n, p) => n + p.products.length, 0)

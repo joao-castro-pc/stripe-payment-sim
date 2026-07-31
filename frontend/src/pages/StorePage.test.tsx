@@ -47,13 +47,13 @@ function mockServer() {
   })
 }
 
-function renderStore() {
+function renderStore(initialPath = '/') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
       <CurrencyProvider>
         <CartProvider>
-          <MemoryRouter>
+          <MemoryRouter initialEntries={[initialPath]}>
             <StorePage />
           </MemoryRouter>
         </CartProvider>
@@ -92,6 +92,17 @@ describe('StorePage filtering', () => {
 
     expect(await screen.findByText('Office Chair')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText('Red Lipstick')).not.toBeInTheDocument())
+    expect(screen.queryByText('Black Mascara')).not.toBeInTheDocument()
+  })
+
+  // Regression: navigating to a product and back must keep the active filter.
+  // The filter lives in the URL, so mounting at ?category=… restores it instead of
+  // resetting to "all products".
+  it('restores the category filter from the URL query string', async () => {
+    renderStore('/?category=furniture')
+
+    expect(await screen.findByText('Office Chair')).toBeInTheDocument()
+    expect(screen.queryByText('Red Lipstick')).not.toBeInTheDocument()
     expect(screen.queryByText('Black Mascara')).not.toBeInTheDocument()
   })
 
