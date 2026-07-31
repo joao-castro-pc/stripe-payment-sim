@@ -29,6 +29,11 @@ public class AppUser
     // Login identifier. Compared case-insensitively (we store it lowercased).
     public string Email { get; set; } = "";
 
+    // Display name captured at registration. Empty for the seeded admin and any
+    // accounts created before this field existed — the UI falls back to the email
+    // (and its initials) when it's blank.
+    public string Name { get; set; } = "";
+
     // Output of PasswordHasher.HashPassword — an opaque string that embeds the
     // salt and the hash. Never the plaintext password.
     public string PasswordHash { get; set; } = "";

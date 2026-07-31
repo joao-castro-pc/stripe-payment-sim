@@ -81,10 +81,10 @@ public class TestAppFactory : WebApplicationFactory<Program>
     // A client signed in as a freshly-registered Customer. Used to check that
     // customer-role accounts can shop but can't reach admin-only endpoints.
     public async Task<HttpClient> CreateCustomerClientAsync(
-        string email = "customer@test.local", string password = "customer-pw-123")
+        string email = "customer@test.local", string password = "customer-pw-123", string name = "Test Customer")
     {
         var client = CreateClient();
-        var res = await client.PostAsJsonAsync("/auth/register", new { email, password });
+        var res = await client.PostAsJsonAsync("/auth/register", new { email, password, name });
         if (!res.IsSuccessStatusCode)
             throw new InvalidOperationException($"Test register failed: {res.StatusCode}");
         return client;

@@ -134,11 +134,12 @@ public class AuthTests
         var client = factory.CreateClient();
 
         var res = await client.PostAsJsonAsync("/auth/register",
-            new { email = "new@shop.local", password = "hunter2!" });
+            new { email = "new@shop.local", password = "hunter2!", name = "New Shopper" });
 
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
         var user = await res.Content.ReadFromJsonAsync<UserDto>();
         Assert.Equal("new@shop.local", user!.Email);
+        Assert.Equal("New Shopper", user.Name);
         Assert.Equal("Customer", user.Role);
         // Registration signs you in, so /auth/me now succeeds on the same client.
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/auth/me")).StatusCode);
@@ -149,7 +150,7 @@ public class AuthTests
     {
         using var factory = new TestAppFactory();
         var client = factory.CreateClient();
-        var body = new { email = "dupe@shop.local", password = "hunter2!" };
+        var body = new { email = "dupe@shop.local", password = "hunter2!", name = "Dupe" };
 
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/auth/register", body)).StatusCode);
         // Second registration with the same email is rejected.
@@ -163,7 +164,19 @@ public class AuthTests
         var client = factory.CreateClient();
 
         var res = await client.PostAsJsonAsync("/auth/register",
-            new { email = "weak@shop.local", password = "123" });
+            new { email = "weak@shop.local", password = "123", name = "Weak" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Register_without_name_returns_400()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+
+        var res = await client.PostAsJsonAsync("/auth/register",
+            new { email = "noname@shop.local", password = "hunter2!", name = "  " });
 
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
@@ -193,5 +206,5 @@ public class AuthTests
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
     }
 
-    private record UserDto(string Email, string Role);
+    private record UserDto(string Email, string Name, string Role);
 }

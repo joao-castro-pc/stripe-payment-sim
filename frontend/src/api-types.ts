@@ -625,6 +625,8 @@ export interface components {
             email?: string | null;
             /** @description The new account's password (min 6 chars). */
             password?: string | null;
+            /** @description The new account's display name. */
+            name?: string | null;
         };
         "String<>f__AnonymousType6": {
             status?: string | null;
@@ -633,6 +635,8 @@ export interface components {
         UserResponse: {
             /** @description The user's email. */
             email?: string | null;
+            /** @description The user's display name (may be empty for older accounts). */
+            name?: string | null;
             role?: components["schemas"]["UserRole"];
         };
         /** @enum {string} */

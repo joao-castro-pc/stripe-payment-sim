@@ -38,7 +38,7 @@ public static class AuthEndpoints
 
             await IssueCookie(http, user);
             log.LogInformation("✅ Login for {Email}", user.Email);
-            return Results.Ok(new UserResponse(user.Email, user.Role));
+            return Results.Ok(new UserResponse(user.Email, user.Name, user.Role));
         })
             .WithTags("Auth")
             .WithSummary("Sign in")
@@ -60,11 +60,16 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { error = "A valid email is required." });
             if ((req.Password ?? "").Length < 6)
                 return Results.BadRequest(new { error = "Password must be at least 6 characters." });
+            var name = (req.Name ?? "").Trim();
+            if (name.Length == 0)
+                return Results.BadRequest(new { error = "A name is required." });
+            if (name.Length > 100)
+                return Results.BadRequest(new { error = "Name must be 100 characters or fewer." });
 
             if (await db.Users.AnyAsync(u => u.Email == email))
                 return Results.Conflict(new { error = "An account with this email already exists." });
 
-            var user = new AppUser { Email = email, Role = UserRole.Customer };
+            var user = new AppUser { Email = email, Name = name, Role = UserRole.Customer };
             user.PasswordHash = hasher.HashPassword(user, req.Password!);
             db.Users.Add(user);
             try
@@ -80,7 +85,7 @@ public static class AuthEndpoints
 
             await IssueCookie(http, user);
             log.LogInformation("🆕 Registered customer {Email}", email);
-            return Results.Created("/auth/me", new UserResponse(user.Email, user.Role));
+            return Results.Created("/auth/me", new UserResponse(user.Email, user.Name, user.Role));
         })
             .WithTags("Auth")
             .WithSummary("Register a customer")
@@ -108,10 +113,11 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
 
             var email = http.User.FindFirstValue(ClaimTypes.Email) ?? "";
+            var name = http.User.FindFirstValue(ClaimTypes.GivenName) ?? "";
             // The role travels in the cookie as a string claim; parse it back to the
             // enum so the response (and thus the frontend's type) is the union.
             return Enum.TryParse<UserRole>(http.User.FindFirstValue(ClaimTypes.Role), out var role)
-                ? Results.Ok(new UserResponse(email, role))
+                ? Results.Ok(new UserResponse(email, name, role))
                 : Results.Unauthorized();
         })
             .WithTags("Auth")
@@ -129,6 +135,7 @@ public static class AuthEndpoints
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.GivenName, user.Name),
             new(ClaimTypes.Role, user.Role.ToString()),
         };
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -144,9 +151,11 @@ public record LoginRequest(string Email, string Password);
 /// <summary>Details for POST /auth/register.</summary>
 /// <param name="Email">The new account's email (must be unique).</param>
 /// <param name="Password">The new account's password (min 6 chars).</param>
-public record RegisterRequest(string Email, string Password);
+/// <param name="Name">The new account's display name.</param>
+public record RegisterRequest(string Email, string Password, string Name);
 
 /// <summary>The signed-in user, returned by login and /auth/me.</summary>
 /// <param name="Email">The user's email.</param>
+/// <param name="Name">The user's display name (may be empty for older accounts).</param>
 /// <param name="Role">The user's role.</param>
-public record UserResponse(string Email, UserRole Role);
+public record UserResponse(string Email, string Name, UserRole Role);

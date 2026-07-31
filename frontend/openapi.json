@@ -575,6 +575,11 @@
             "type": "string",
             "description": "The new account's password (min 6 chars).",
             "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "The new account's display name.",
+            "nullable": true
           }
         },
         "additionalProperties": false,
@@ -596,6 +601,11 @@
           "email": {
             "type": "string",
             "description": "The user's email.",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "description": "The user's display name (may be empty for older accounts).",
             "nullable": true
           },
           "role": {
