@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using PaymentSim.Api.Data;
 using PaymentSim.Api.Models;
@@ -81,6 +82,19 @@ public static class WebhookEndpoints
                 // any other event type: nothing to do
             }
 
+            // A recognised event type whose payload didn't deserialize to the expected
+            // object (e.g. a Stripe API-version mismatch between the account and the SDK)
+            // would fall through the guards above with newStatus still null and be treated
+            // exactly like an event we don't care about — silently dropping a real outcome.
+            // Retrying wouldn't fix a version mismatch, so we don't ask Stripe to redeliver;
+            // we just make the miss LOUD instead of invisible.
+            if (newStatus is null && stripeEvent.Type is EventTypes.PaymentIntentSucceeded
+                    or EventTypes.PaymentIntentPaymentFailed or EventTypes.ChargeRefunded)
+            {
+                webhookLog.LogError("Handled event type {Type} ({Id}) but its payload was not the expected object — ignoring",
+                    stripeEvent.Type, stripeEvent.Id);
+            }
+
             if (newStatus is not null && paymentIntentId is not null)
             {
                 // The order might not exist YET: Stripe can deliver this webhook before
@@ -97,18 +111,33 @@ public static class WebhookEndpoints
 
                 if (order is null)
                 {
-                    // Still nothing after retrying: the event probably isn't ours (e.g.
-                    // `stripe trigger` creates its own PaymentIntent). Nothing to update.
-                    webhookLog.LogWarning("⚠️ No order matches PaymentIntent {Pi} after {Attempts} attempts", paymentIntentId, maxAttempts);
+                    // Retried and still no matching order. We can't tell two cases apart:
+                    //  (a) the event isn't ours — e.g. `stripe trigger` makes its own
+                    //      PaymentIntent that no order references; or
+                    //  (b) it IS ours, but POST /orders hasn't committed the row yet (a
+                    //      commit slower than our ~450 ms retry budget).
+                    // We must NOT record it as processed and MUST NOT return 2xx: a 2xx
+                    // tells Stripe "handled, stop retrying", which for case (b) loses a real
+                    // payment forever (the order stays Pending though the card was charged,
+                    // and the idempotency fast-path would swallow any later redelivery).
+                    // Returning 5xx makes Stripe redeliver later (it backs off over hours) —
+                    // that heals (b); a genuinely-foreign (a) event just gets retried a few
+                    // times and then Stripe gives up. Harmless.
+                    webhookLog.LogWarning("⚠️ No order for PaymentIntent {Pi} after {Attempts} attempts — asking Stripe to retry", paymentIntentId, maxAttempts);
+                    return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
                 }
                 // Only apply a SANE transition. Stripe delivers at-least-once and can
                 // deliver out of order, so a late/duplicate event must not corrupt state
                 // (e.g. a stray payment_failed arriving after succeeded must NOT flip a
-                // Paid order to Failed). Legal moves: Pending->Paid, Pending->Failed,
-                // Paid->Refunded. Anything else is ignored (but still recorded as processed).
-                else if (newStatus.Value switch
+                // Paid order to Failed). Legal moves: Pending->Paid, Failed->Paid,
+                // Pending->Failed, Paid->Refunded. Anything else is ignored (but still
+                // recorded as processed). Failed->Paid matters: with the Payment Element a
+                // single PaymentIntent survives a declined card, so Stripe can emit
+                // payment_failed then payment_intent.succeeded on a retry — without this the
+                // order would stay Failed while the card was actually charged.
+                if (newStatus.Value switch
                 {
-                    OrderStatus.Paid => order.Status == OrderStatus.Pending,
+                    OrderStatus.Paid => order.Status is OrderStatus.Pending or OrderStatus.Failed,
                     OrderStatus.Failed => order.Status == OrderStatus.Pending,
                     OrderStatus.Refunded => order.Status == OrderStatus.Paid,
                     _ => false,
@@ -150,9 +179,16 @@ public static class WebhookEndpoints
                     webhookLog.LogInformation("📢 Notified SSE clients of order change");
                 }
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteErrorCode: 19 })
             {
-                // Another concurrent delivery inserted the same id first -> it's a duplicate.
+                // SQLITE_CONSTRAINT (19): another concurrent delivery inserted the same event
+                // id first -> the PK conflict means this really is a duplicate, so swallow it
+                // and answer 2xx. We filter on the error code deliberately: a bare
+                // `catch (DbUpdateException)` would ALSO swallow a locked DB (SQLITE_BUSY),
+                // disk-full or I/O error as if it were a duplicate — recording success and
+                // telling Stripe to stop retrying while the order update was actually rolled
+                // back. Any non-constraint DbUpdateException now propagates -> 500 -> Stripe
+                // redelivers.
                 webhookLog.LogInformation("🔁 Duplicate event race ignored (PK conflict): {Id}", stripeEvent.Id);
             }
 
