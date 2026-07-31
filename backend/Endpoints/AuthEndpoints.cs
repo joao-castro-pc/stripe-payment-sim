@@ -42,7 +42,7 @@ public static class AuthEndpoints
             {
                 new(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new(ClaimTypes.Email, user.Email),
-                new(ClaimTypes.Role, user.Role),
+                new(ClaimTypes.Role, user.Role.ToString()),
             };
             var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
             // SignInAsync serializes the principal into the encrypted, HttpOnly cookie.
@@ -76,8 +76,11 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
 
             var email = http.User.FindFirstValue(ClaimTypes.Email) ?? "";
-            var role = http.User.FindFirstValue(ClaimTypes.Role) ?? "";
-            return Results.Ok(new UserResponse(email, role));
+            // The role travels in the cookie as a string claim; parse it back to the
+            // enum so the response (and thus the frontend's type) is the union.
+            return Enum.TryParse<UserRole>(http.User.FindFirstValue(ClaimTypes.Role), out var role)
+                ? Results.Ok(new UserResponse(email, role))
+                : Results.Unauthorized();
         })
             .WithTags("Auth")
             .WithSummary("Current user")
@@ -94,5 +97,5 @@ public record LoginRequest(string Email, string Password);
 
 /// <summary>The signed-in user, returned by login and /auth/me.</summary>
 /// <param name="Email">The user's email.</param>
-/// <param name="Role">The user's role, e.g. "admin".</param>
-public record UserResponse(string Email, string Role);
+/// <param name="Role">The user's role.</param>
+public record UserResponse(string Email, UserRole Role);

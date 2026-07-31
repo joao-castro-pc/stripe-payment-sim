@@ -117,7 +117,8 @@ if (app.Environment.IsDevelopment())
 // The key comes from configuration (user-secrets in dev) — never hard-coded.
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
-// Dev-only: create the SQLite file + tables if they don't exist yet, then seed the
+// Apply any pending EF Core migrations at startup (creates the DB + schema on a
+// fresh volume, and applies future schema changes going forward). Then seed the
 // single admin account from configuration (Admin:Email / Admin:Password). The
 // password is only ever read from config (user-secrets in dev, host secrets in
 // prod) and stored as a hash — never in source. Seeds only if the user is absent,
@@ -125,21 +126,7 @@ StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
-
-    // EnsureCreated only builds the schema when the database file is brand new.
-    // The existing dev/prod databases predate the Users table, so EnsureCreated
-    // won't add it — create it explicitly (idempotent). A production app would use
-    // EF Core migrations for schema changes; that's tracked as a follow-up.
-    db.Database.ExecuteSqlRaw(
-        @"CREATE TABLE IF NOT EXISTS ""Users"" (
-            ""Id"" TEXT NOT NULL CONSTRAINT ""PK_Users"" PRIMARY KEY,
-            ""Email"" TEXT NOT NULL,
-            ""PasswordHash"" TEXT NOT NULL,
-            ""Role"" TEXT NOT NULL,
-            ""CreatedAt"" TEXT NOT NULL);");
-    db.Database.ExecuteSqlRaw(
-        @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Users_Email"" ON ""Users"" (""Email"");");
+    db.Database.Migrate();
 
     var adminEmail = builder.Configuration["Admin:Email"]?.Trim().ToLowerInvariant();
     var adminPassword = builder.Configuration["Admin:Password"];
@@ -154,7 +141,7 @@ using (var scope = app.Services.CreateScope())
     else if (!db.Users.Any(u => u.Email == adminEmail))
     {
         var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>();
-        var admin = new AppUser { Email = adminEmail, Role = "admin" };
+        var admin = new AppUser { Email = adminEmail, Role = UserRole.Admin };
         admin.PasswordHash = hasher.HashPassword(admin, adminPassword);
         db.Users.Add(admin);
         db.SaveChanges();

@@ -20,7 +20,7 @@ public class AuthTests
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
         var user = await res.Content.ReadFromJsonAsync<UserDto>();
         Assert.Equal(TestAppFactory.AdminEmail, user!.Email);
-        Assert.Equal("admin", user.Role);
+        Assert.Equal("Admin", user.Role);
         // The auth cookie must have been set.
         Assert.Contains(res.Headers, h => h.Key == "Set-Cookie" && h.Value.Any(v => v.Contains("psim_auth")));
     }

@@ -302,7 +302,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["String<>f__AnonymousType2"];
+                        "application/json": components["schemas"]["String<>f__AnonymousType5"];
                     };
                 };
             };
@@ -434,16 +434,17 @@ export interface components {
             /** @description Human-readable explanation the frontend can show. */
             message?: string | null;
         };
-        "String<>f__AnonymousType2": {
+        "String<>f__AnonymousType5": {
             status?: string | null;
         };
         /** @description The signed-in user, returned by login and /auth/me. */
         UserResponse: {
             /** @description The user's email. */
             email?: string | null;
-            /** @description The user's role, e.g. "admin". */
-            role?: string | null;
+            role?: components["schemas"]["UserRole"];
         };
+        /** @enum {string} */
+        UserRole: "Admin" | "Customer";
     };
     responses: never;
     parameters: never;

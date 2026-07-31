@@ -194,7 +194,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/String<>f__AnonymousType2"
+                  "$ref": "#/components/schemas/String<>f__AnonymousType5"
                 }
               }
             }
@@ -370,7 +370,7 @@
         "additionalProperties": false,
         "description": "Response returned when a refund is accepted (still pending)."
       },
-      "String<>f__AnonymousType2": {
+      "String<>f__AnonymousType5": {
         "type": "object",
         "properties": {
           "status": {
@@ -389,13 +389,18 @@
             "nullable": true
           },
           "role": {
-            "type": "string",
-            "description": "The user's role, e.g. \"admin\".",
-            "nullable": true
+            "$ref": "#/components/schemas/UserRole"
           }
         },
         "additionalProperties": false,
         "description": "The signed-in user, returned by login and /auth/me."
+      },
+      "UserRole": {
+        "enum": [
+          "Admin",
+          "Customer"
+        ],
+        "type": "string"
       }
     }
   },

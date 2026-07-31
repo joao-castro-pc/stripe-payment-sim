@@ -28,6 +28,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.*" />
+    <!-- Design-time only: powers `dotnet ef migrations`. Not shipped at runtime. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.*">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Stripe.net" Version="52.1.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
     <!-- Build-time OpenAPI document generation (dotnet-getdocument). Build-only,

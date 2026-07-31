@@ -30,5 +30,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AppUser>()
             .HasIndex(u => u.Email)
             .IsUnique();
+
+        // Store the role as text ("Admin"/"Customer") for a readable DB column,
+        // mirroring how OrderStatus is persisted.
+        modelBuilder.Entity<AppUser>()
+            .Property(u => u.Role)
+            .HasConversion<string>();
     }
 }
