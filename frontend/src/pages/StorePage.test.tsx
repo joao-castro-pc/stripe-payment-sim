@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import StorePage from './StorePage'
-import { CartProvider } from '../cart/CartContext'
-import { CurrencyProvider } from '../currency/CurrencyContext'
-import * as dummy from '../dummyjson'
-import type { Product } from '../dummyjson'
+import { CartProvider } from '@/cart/CartContext'
+import { CurrencyProvider } from '@/currency/CurrencyContext'
+import * as dummy from '@/dummyjson'
+import type { Product } from '@/dummyjson'
 
 // Replace the real DummyJSON fetch with a controllable mock.
 vi.mock('../dummyjson', () => ({ listProducts: vi.fn() }))

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { CartProvider, useCart } from './CartContext'
-import type { Product } from '../dummyjson'
+import type { Product } from '@/dummyjson'
 
 // Minimal product factory — only the fields the cart touches matter here.
 const product = (id: number, price: number): Product => ({

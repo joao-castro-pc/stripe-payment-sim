@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Search, Star } from 'lucide-react'
-import { listProducts, type Product } from '../dummyjson'
-import { useCart } from '../cart/CartContext'
-import { useCurrency } from '../currency/CurrencyContext'
+import { listProducts, type Product } from '@/dummyjson'
+import { useCart } from '@/cart/CartContext'
+import { useCurrency } from '@/currency/CurrencyContext'
 import { Button } from '@/components/ui/button'
 
 // Five stars, filled up to the (rounded) rating. Decorative, so aria-hidden.

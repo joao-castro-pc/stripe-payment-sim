@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { useAuth } from '@/auth/AuthContext'
 
 // Route guard: renders children only when signed in. While the initial session
 // check is in flight we render nothing meaningful (avoids flashing /login), and

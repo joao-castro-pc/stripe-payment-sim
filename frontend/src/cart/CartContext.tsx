@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import type { Product } from '../dummyjson'
+import type { Product } from '@/dummyjson'
 
 // One line in the cart: a product plus how many of it.
 export interface CartItem {

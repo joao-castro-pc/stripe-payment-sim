@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CURRENCIES, FALLBACK_RATES, convert, toMinorUnits, type Currency } from '../lib/money'
-import { fetchRates } from '../lib/fx'
+import { CURRENCIES, FALLBACK_RATES, convert, toMinorUnits, type Currency } from '@/lib/money'
+import { fetchRates } from '@/lib/fx'
 
 // Shares the shopper's chosen currency + the conversion helpers across the app.
 // All amounts passed to format()/toMinor() are in USD (the catalog's base);
