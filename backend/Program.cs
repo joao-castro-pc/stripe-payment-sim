@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using PaymentSim.Api;
 using PaymentSim.Api.Data;
 using PaymentSim.Api.Endpoints;
+using PaymentSim.Api.Models;
 using PaymentSim.Api.Payments;
 using Stripe;
 
@@ -38,6 +41,34 @@ builder.Services.AddSingleton<OrderNotifier>();
 // real Stripe implementation here. Tests register a fake instead.
 builder.Services.AddScoped<IPaymentGateway, StripePaymentGateway>();
 
+// Password hashing for the seeded admin login. PasswordHasher is part of ASP.NET
+// Core Identity's primitives (no full Identity system needed) — salted PBKDF2.
+builder.Services.AddSingleton<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
+
+// Cookie authentication. On login we write an encrypted, HttpOnly cookie holding
+// the user's claims; the browser resends it automatically on same-origin requests
+// (that's why the SPA needs no token handling). Being an API, we return 401/403
+// instead of the default redirect to a (non-existent) login page.
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "psim_auth";
+        options.Cookie.HttpOnly = true;               // JS can't read it -> immune to token theft via XSS
+        options.Cookie.SameSite = SameSiteMode.Lax;   // sent on same-origin + top-level nav; blocks most CSRF
+        // Mark the cookie Secure in production (HTTPS) so it's never sent over
+        // plain HTTP; allow HTTP in local dev where there's no TLS.
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        options.SlidingExpiration = true;
+        // API-style responses: no HTML redirects, just status codes.
+        options.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
+        options.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
+    });
+builder.Services.AddAuthorization();
+
 // Swagger: an in-browser UI to explore and call the API by hand (dev only).
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -70,6 +101,11 @@ app.UseCors("frontend");
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Authenticate (read the cookie into HttpContext.User) then authorize (enforce
+// .RequireAuthorization on endpoints). Order matters: authentication first.
+app.UseAuthentication();
+app.UseAuthorization();
+
 // Serve Swagger UI at /swagger while developing.
 if (app.Environment.IsDevelopment())
 {
@@ -81,15 +117,40 @@ if (app.Environment.IsDevelopment())
 // The key comes from configuration (user-secrets in dev) — never hard-coded.
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
-// Dev-only: create the SQLite file + tables if they don't exist yet.
+// Dev-only: create the SQLite file + tables if they don't exist yet, then seed the
+// single admin account from configuration (Admin:Email / Admin:Password). The
+// password is only ever read from config (user-secrets in dev, host secrets in
+// prod) and stored as a hash — never in source. Seeds only if the user is absent,
+// so it's safe to run on every startup.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+
+    var adminEmail = builder.Configuration["Admin:Email"]?.Trim().ToLowerInvariant();
+    var adminPassword = builder.Configuration["Admin:Password"];
+    var seedLog = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Seed");
+
+    if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
+    {
+        // No credentials configured -> no admin. Auth-protected endpoints will be
+        // unreachable until you set Admin:Email and Admin:Password. Warn loudly.
+        seedLog.LogWarning("⚠️ Admin not seeded: set Admin:Email and Admin:Password (user-secrets in dev, host secrets in prod).");
+    }
+    else if (!db.Users.Any(u => u.Email == adminEmail))
+    {
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<AppUser>>();
+        var admin = new AppUser { Email = adminEmail, Role = "admin" };
+        admin.PasswordHash = hasher.HashPassword(admin, adminPassword);
+        db.Users.Add(admin);
+        db.SaveChanges();
+        seedLog.LogInformation("🌱 Seeded admin {Email}", adminEmail);
+    }
 }
 
 // Endpoints, grouped by area (see Endpoints/*.cs).
 app.MapSystemEndpoints();
+app.MapAuthEndpoints();
 app.MapOrderEndpoints();
 app.MapWebhookEndpoints();
 

@@ -5,6 +5,78 @@
     "version": "v1"
   },
   "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign in",
+        "description": "Verifies email/password and sets the auth cookie. Returns 200 with the user, or 401 if the credentials are wrong.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign out",
+        "description": "Clears the auth cookie. Always returns 204.",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Current user",
+        "description": "Returns the signed-in user, or 401 if there's no active session.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/orders": {
       "get": {
         "tags": [
@@ -194,6 +266,23 @@
         "additionalProperties": false,
         "description": "Response returned when a checkout starts."
       },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Account email (case-insensitive).",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "description": "Account password (plaintext over HTTPS; verified against a stored hash).",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Credentials for POST /auth/login."
+      },
       "Order": {
         "type": "object",
         "properties": {
@@ -290,10 +379,30 @@
           }
         },
         "additionalProperties": false
+      },
+      "UserResponse": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The user's email.",
+            "nullable": true
+          },
+          "role": {
+            "type": "string",
+            "description": "The user's role, e.g. \"admin\".",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "The signed-in user, returned by login and /auth/me."
       }
     }
   },
   "tags": [
+    {
+      "name": "Auth"
+    },
     {
       "name": "Orders"
     },

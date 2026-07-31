@@ -15,6 +15,9 @@ public class AppDbContext : DbContext
     // Ids of Stripe events we've already processed (idempotency ledger).
     public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
 
+    // Accounts that can sign in (currently just the seeded admin).
+    public DbSet<AppUser> Users => Set<AppUser>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Store the enum as readable text ("Pending"/"Paid") in the DB column
@@ -22,5 +25,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Order>()
             .Property(o => o.Status)
             .HasConversion<string>();
+
+        // One account per email. The unique index also makes login lookups fast.
+        modelBuilder.Entity<AppUser>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
     }
 }
