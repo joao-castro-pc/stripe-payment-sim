@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { ArrowLeft } from 'lucide-react'
 import { getOrder } from '@/orders/api'
 import { formatMoney } from '@/orders/format'
 import { StatusBadge } from '@/orders/StatusBadge'
@@ -18,8 +19,8 @@ export default function OrderDetailPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
-      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link to="/admin">← Orders</Link>
+      <Button asChild variant="outline" size="sm" className="mb-4">
+        <Link to="/admin"><ArrowLeft className="size-4" /> Orders</Link>
       </Button>
 
       {isPending && <p className="text-muted-foreground">Loading…</p>}

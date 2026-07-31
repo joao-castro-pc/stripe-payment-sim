@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { ArrowLeft } from 'lucide-react'
 import { getProduct } from '@/dummyjson'
 import { useCart } from '@/cart/CartContext'
 import { useCurrency } from '@/currency/CurrencyContext'
@@ -27,8 +28,8 @@ export default function ProductDetailPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
-      <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
-        <Link to="/">← Store</Link>
+      <Button asChild variant="outline" size="sm" className="mb-4">
+        <Link to="/"><ArrowLeft className="size-4" /> Store</Link>
       </Button>
 
       {isPending && <p className="font-mono text-sm text-muted-foreground">Loading product…</p>}
