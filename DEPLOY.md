@@ -31,11 +31,17 @@ fly volumes create data --region mad --size 1   # match primary_region in fly.to
 If `fly launch` renamed the app or changed the region, update `app`/`primary_region`
 in `fly.toml` (and use the same region for the volume).
 
-## 2. Set the secret key
+## 2. Set the secret key + admin credentials
 
 ```
 fly secrets set Stripe__SecretKey=sk_test_xxx
+fly secrets set Admin__Email=you@example.com Admin__Password=<a-strong-password>
 ```
+
+`Admin__Email` / `Admin__Password` seed the single admin account on startup (the
+password is stored only as a hash). Without them no admin exists, so login — and
+therefore checkout and the admin dashboard — is unreachable. Setting a secret
+restarts the app automatically, which re-runs the seed.
 
 (The webhook secret comes in step 4, after the URL exists.)
 
