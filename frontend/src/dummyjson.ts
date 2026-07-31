@@ -3,6 +3,15 @@
 // concern cleanly separate from our payment domain (and teaches consuming an
 // external API alongside our own).
 
+// A single customer review, as returned inside a product's `reviews` array.
+export interface Review {
+  rating: number
+  comment: string
+  date: string // ISO timestamp
+  reviewerName: string
+  reviewerEmail: string
+}
+
 export interface Product {
   id: number
   title: string
@@ -17,6 +26,7 @@ export interface Product {
   images?: string[]
   brand?: string
   discountPercentage?: number
+  reviews?: Review[]
 }
 
 // DummyJSON wraps every list in this envelope; `total` drives pagination.

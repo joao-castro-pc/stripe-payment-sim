@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
-import { getProduct } from '@/dummyjson'
+import { getProduct, type Review } from '@/dummyjson'
 import { useCurrency } from '@/currency/CurrencyContext'
 import { Stars } from '@/components/Stars'
 import { Button } from '@/components/ui/button'
@@ -44,6 +44,7 @@ export default function ProductDetailPage() {
       {isError && <p className="text-destructive">Error: {(error as Error).message}</p>}
 
       {product && (
+        <>
         <div className="grid gap-8 md:grid-cols-2">
           {/* Gallery */}
           <div>
@@ -116,7 +117,43 @@ export default function ProductDetailPage() {
             />
           </div>
         </div>
+
+        {product.reviews && product.reviews.length > 0 && (
+          <section className="mt-14">
+            <h2 className="font-serif text-2xl text-foreground">
+              Reviews <span className="text-muted-foreground">({product.reviews.length})</span>
+            </h2>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {product.reviews.map((r, i) => (
+                <ReviewCard key={i} review={r} />
+              ))}
+            </div>
+          </section>
+        )}
+        </>
       )}
     </main>
+  )
+}
+
+function ReviewCard({ review }: { review: Review }) {
+  // DummyJSON dates are ISO strings; show them in day/month/year.
+  const date = new Date(review.date)
+  const when = Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2">
+        <Stars rating={review.rating} />
+        <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{review.rating.toFixed(1)}</span>
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-card-foreground">“{review.comment}”</p>
+      <p className="mt-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+        {review.reviewerName}
+        {when && <span> · {when}</span>}
+      </p>
+    </div>
   )
 }
