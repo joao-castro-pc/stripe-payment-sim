@@ -1,34 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { toast } from 'sonner'
 import { listOrders, createOrder, deleteOrder, refundOrder } from '@/orders/api'
-import type { OrderStatus } from '@/orders/types'
+import { formatMoney } from '@/orders/format'
+import { StatusBadge } from '@/orders/StatusBadge'
 import { API_BASE } from '@/lib/http'
-
-// Cache one Intl.NumberFormat per currency. Constructing a formatter is costly,
-// and formatMoney runs once per order row on every table render — so we build it
-// once per currency and reuse it instead of allocating a new one each call.
-const fmtCache = new Map<string, Intl.NumberFormat>()
-function formatMoney(cents: number, currency: string) {
-  let fmt = fmtCache.get(currency)
-  if (!fmt) {
-    fmt = new Intl.NumberFormat(undefined, { style: 'currency', currency })
-    fmtCache.set(currency, fmt)
-  }
-  return fmt.format(cents / 100)
-}
-
-function StatusBadge({ status }: { status: OrderStatus }) {
-  const { label, classes } =
-    status === 'Paid' ? { label: 'Paid', classes: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300' }
-    : status === 'Failed' ? { label: 'Failed', classes: 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300' }
-    : status === 'Refunded' ? { label: 'Refunded', classes: 'bg-slate-200 text-slate-700 dark:bg-slate-500/20 dark:text-slate-300' }
-    : { label: 'Pending', classes: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300' }
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${classes}`}>{label}</span>
-  )
-}
 
 // Stripe's card iframe can't be styled with CSS/Tailwind — only via this API.
 const cardStyle = {
@@ -60,7 +38,11 @@ function CheckoutForm() {
       if (!card) throw new Error('Card field not ready')
 
       const amountCents = Math.round(parseFloat(euros) * 100)
-      const { clientSecret } = await createOrder(amountCents, 'eur')
+      // The admin's manual checkout has no product, so send a single synthetic
+      // line item (productId 0 = "manual charge") — the API always takes items now.
+      const { clientSecret } = await createOrder('eur', [
+        { productId: 0, title: 'Manual charge', unitAmountCents: amountCents, quantity: 1 },
+      ])
 
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card },
@@ -126,6 +108,7 @@ function CheckoutForm() {
 
 export default function AdminPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   // Deleting an order is a dev-only tool (the backend endpoint only exists in
   // Development). Vite sets DEV=true for `npm run dev`, false for a prod build,
   // so the button never ships in a production bundle.
@@ -203,7 +186,13 @@ export default function AdminPage() {
             </thead>
             <tbody>
               {orders.map((o) => (
-                <tr key={o.id} className="border-b border-border/60 last:border-0">
+                // The whole row is a link to the order detail. The action buttons
+                // stopPropagation so clicking Refund/Delete doesn't also navigate.
+                <tr
+                  key={o.id}
+                  onClick={() => navigate(`/admin/orders/${o.id}`)}
+                  className="cursor-pointer border-b border-border/60 transition last:border-0 hover:bg-accent/50"
+                >
                   <td className="px-4 py-3 text-sm font-medium text-foreground">{formatMoney(o.amountCents, o.currency)}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{o.customerEmail ?? '—'}</td>
                   <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
@@ -213,7 +202,7 @@ export default function AdminPage() {
                       {/* Refund is a real business action — shown for any Paid order. */}
                       {o.status === 'Paid' && (
                         <button
-                          onClick={() => refund.mutate(o.id)}
+                          onClick={(e) => { e.stopPropagation(); refund.mutate(o.id) }}
                           disabled={refund.isPending}
                           className="text-sm font-medium text-indigo-600 transition hover:text-indigo-800 disabled:opacity-50 dark:text-indigo-400 dark:hover:text-indigo-300"
                         >
@@ -223,7 +212,7 @@ export default function AdminPage() {
                       {/* Delete is a dev-only tool (backend endpoint is Development-only). */}
                       {isDev && (
                         <button
-                          onClick={() => del.mutate(o.id)}
+                          onClick={(e) => { e.stopPropagation(); del.mutate(o.id) }}
                           disabled={del.isPending}
                           className="text-sm text-muted-foreground transition hover:text-destructive disabled:opacity-50"
                           title="Delete order"

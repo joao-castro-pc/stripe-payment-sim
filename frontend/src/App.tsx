@@ -1,6 +1,7 @@
 import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import StorePage from './pages/StorePage'
 import AdminPage from './pages/AdminPage'
+import OrderDetailPage from './pages/OrderDetailPage'
 import CheckoutPage from './pages/CheckoutPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -93,6 +94,7 @@ export default function App() {
           {/* Buying requires any signed-in user; the admin dashboard requires an admin. */}
           <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
           <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
+          <Route path="/admin/orders/:id" element={<RequireAdmin><OrderDetailPage /></RequireAdmin>} />
         </Routes>
       </div>
     </div>

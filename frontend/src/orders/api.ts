@@ -2,14 +2,21 @@
 // @/lib/http.
 
 import { fetchJson, postJson, API_BASE } from '@/lib/http'
-import type { CreateOrderResponse, Order, RefundResponse } from './types'
+import type { CreateOrderResponse, Order, OrderDetail, OrderItemInput, RefundResponse } from './types'
 
 export function listOrders(): Promise<Order[]> {
   return fetchJson<Order[]>('/orders')
 }
 
-export function createOrder(amountCents: number, currency: string): Promise<CreateOrderResponse> {
-  return postJson<CreateOrderResponse>('/orders', { amountCents, currency })
+// One order in full, with its line items (admin order-detail view).
+export function getOrder(id: string): Promise<OrderDetail> {
+  return fetchJson<OrderDetail>(`/orders/${id}`)
+}
+
+// Start a checkout. The backend sums the total from the items, so we send the
+// line items (currency + products), not a pre-computed amount.
+export function createOrder(currency: string, items: OrderItemInput[]): Promise<CreateOrderResponse> {
+  return postJson<CreateOrderResponse>('/orders', { currency, items })
 }
 
 export function refundOrder(id: string): Promise<RefundResponse> {

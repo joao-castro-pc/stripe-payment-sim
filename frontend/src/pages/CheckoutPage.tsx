@@ -25,6 +25,7 @@ function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
   const stripe = useStripe()
   const elements = useElements()
   const { format, toMinor, currency } = useCurrency()
+  const { items } = useCart()
 
   const pay = useMutation({
     mutationFn: async () => {
@@ -34,9 +35,18 @@ function PaymentForm({ total, onPaid }: { total: number; onPaid: () => void }) {
       const { error: submitError } = await elements.submit()
       if (submitError) throw new Error(submitError.message ?? 'Please check your details')
 
-      // 2. Now create the order → PaymentIntent → clientSecret, in the chosen
-      //    currency and its correct minor units (JPY has no cents).
-      const { clientSecret } = await createOrder(toMinor(total), currency)
+      // 2. Now create the order → PaymentIntent → clientSecret. Send the cart as
+      //    line items, each unit price converted to the chosen currency's minor
+      //    units (JPY has no cents). The backend sums these into the charged total —
+      //    which matches the amount shown below because it's summed the same way.
+      const lineItems = items.map((i) => ({
+        productId: i.product.id,
+        title: i.product.title,
+        unitAmountCents: toMinor(i.product.price),
+        quantity: i.qty,
+        thumbnail: i.product.thumbnail,
+      }))
+      const { clientSecret } = await createOrder(currency, lineItems)
 
       // 3. Confirm against that fresh clientSecret. redirect:'if_required' keeps us
       //    on-page for methods that don't redirect (cards, Link).
@@ -113,7 +123,10 @@ export default function CheckoutPage() {
   // Deferred Elements: amount/currency up front (so methods like Link/wallets can
   // show), no clientSecret yet. Match the appearance to the app's light/dark theme.
   const dark = document.documentElement.classList.contains('dark')
-  const amountMinor = toMinor(total)
+  // Sum the per-line minor amounts (not toMinor(total)) so the amount shown to
+  // Stripe here exactly matches the total the backend sums from the same line
+  // items — otherwise per-line rounding could differ by a cent.
+  const amountMinor = items.reduce((sum, i) => sum + toMinor(i.product.price) * i.qty, 0)
   const options: StripeElementsOptions = {
     mode: 'payment',
     amount: amountMinor,

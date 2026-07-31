@@ -13,6 +13,24 @@ export type Order =
   Omit<Unwrap<Schemas['OrderResponse']>, 'customerEmail'>
   & { customerEmail: string | null }
 
+// One line item as sent to POST /orders. thumbnail is optional (the admin's
+// manual charge has no product image).
+export type OrderItemInput =
+  Omit<Unwrap<Schemas['OrderItemInput']>, 'thumbnail'>
+  & { thumbnail?: string | null }
+
+// One line item as returned in an order's detail. thumbnail may be null.
+export type OrderItem =
+  Omit<Unwrap<Schemas['OrderItemResponse']>, 'thumbnail'>
+  & { thumbnail: string | null }
+
+// Full detail of one order (GET /orders/{id}) — total, customer, PaymentIntent
+// and the products bought. customerEmail and the PaymentIntent id can be null
+// (a userless legacy order; an order whose intent isn't set yet).
+export type OrderDetail =
+  Omit<Unwrap<Schemas['OrderDetailResponse']>, 'customerEmail' | 'stripePaymentIntentId' | 'items'>
+  & { customerEmail: string | null; stripePaymentIntentId: string | null; items: OrderItem[] }
+
 // What POST /orders returns (clientSecret is what Stripe.js needs to confirm).
 export type CreateOrderResponse = Unwrap<Schemas['CreateOrderResponse']>
 
