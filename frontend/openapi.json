@@ -120,7 +120,7 @@
           "Orders"
         ],
         "summary": "List all orders",
-        "description": "Returns every order, newest first. Use it to see an order flip from Pending to Paid after a webhook.",
+        "description": "Returns every order, newest first, with the customer's email. Use it to see an order flip from Pending to Paid after a webhook.",
         "responses": {
           "200": {
             "description": "OK",
@@ -129,7 +129,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/Order"
+                    "$ref": "#/components/schemas/OrderResponse"
                   }
                 }
               }
@@ -320,34 +320,40 @@
         "additionalProperties": false,
         "description": "Credentials for POST /auth/login."
       },
-      "Order": {
+      "OrderResponse": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string",
+            "description": "The order id.",
             "format": "uuid"
           },
           "amountCents": {
             "type": "integer",
+            "description": "Amount in the smallest currency unit (cents).",
             "format": "int64"
           },
           "currency": {
             "type": "string",
+            "description": "Lowercase ISO currency code, e.g. \"eur\".",
             "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/OrderStatus"
           },
-          "stripePaymentIntentId": {
-            "type": "string",
-            "nullable": true
-          },
           "createdAt": {
             "type": "string",
+            "description": "When the order was created (UTC).",
             "format": "date-time"
+          },
+          "customerEmail": {
+            "type": "string",
+            "description": "Email of the account that placed it, or null if none.",
+            "nullable": true
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "An order as shown in the admin list, with the customer who placed it."
       },
       "OrderStatus": {
         "enum": [

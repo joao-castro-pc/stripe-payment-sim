@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using PaymentSim.Api.Data;
@@ -14,13 +15,19 @@ public static class OrderEndpoints
         var checkoutLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Checkout");
         var refundLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Refund");
 
-        // List all orders, newest first.
+        // List all orders, newest first, each with the email of the customer who
+        // placed it (projected via the User navigation; null for pre-account orders).
         app.MapGet("/orders", async (AppDbContext db) =>
-                await db.Orders.OrderByDescending(o => o.CreatedAt).ToListAsync())
+                await db.Orders
+                    .OrderByDescending(o => o.CreatedAt)
+                    .Select(o => new OrderResponse(
+                        o.Id, o.AmountCents, o.Currency, o.Status, o.CreatedAt,
+                        o.User != null ? o.User.Email : null))
+                    .ToListAsync())
             .WithTags("Orders")
             .WithSummary("List all orders")
-            .WithDescription("Returns every order, newest first. Use it to see an order flip from Pending to Paid after a webhook.")
-            .Produces<List<Order>>(StatusCodes.Status200OK)
+            .WithDescription("Returns every order, newest first, with the customer's email. Use it to see an order flip from Pending to Paid after a webhook.")
+            .Produces<List<OrderResponse>>(StatusCodes.Status200OK)
             .RequireAuthorization("Admin"); // admin-only: full order list
 
         // Server-Sent Events: a long-lived connection the browser opens once. The
@@ -59,7 +66,7 @@ public static class OrderEndpoints
 
         // Start a checkout: create our order (Pending) AND a Stripe PaymentIntent.
         // Returns the clientSecret the frontend needs to confirm the card payment.
-        app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db, IPaymentGateway payments) =>
+        app.MapPost("/orders", async (CreateOrderRequest req, AppDbContext db, IPaymentGateway payments, ClaimsPrincipal user) =>
         {
             if (string.IsNullOrEmpty(StripeConfiguration.ApiKey))
             {
@@ -88,7 +95,11 @@ public static class OrderEndpoints
             checkoutLog.LogInformation("🛒 Checkout requested: {Amount} {Currency}", req.AmountCents, currency);
 
             // 1. Build the order object (not saved yet — we only persist if Stripe succeeds).
+            //    Attribute it to the signed-in user (the endpoint requires auth, so the
+            //    id claim is always present).
             var order = new Order { AmountCents = req.AmountCents, Currency = currency };
+            if (Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
+                order.UserId = userId;
 
             // 2. Create the matching PaymentIntent via the gateway (Stripe, in prod).
             //    The gateway hides Stripe.net behind IPaymentGateway (see Payments/).
@@ -185,6 +196,16 @@ public static class OrderEndpoints
             .RequireAuthorization("Admin"); // admin-only action
     }
 }
+
+/// <summary>An order as shown in the admin list, with the customer who placed it.</summary>
+/// <param name="Id">The order id.</param>
+/// <param name="AmountCents">Amount in the smallest currency unit (cents).</param>
+/// <param name="Currency">Lowercase ISO currency code, e.g. "eur".</param>
+/// <param name="Status">Order status (Pending/Paid/Failed/Refunded).</param>
+/// <param name="CreatedAt">When the order was created (UTC).</param>
+/// <param name="CustomerEmail">Email of the account that placed it, or null if none.</param>
+public record OrderResponse(
+    Guid Id, long AmountCents, string Currency, OrderStatus Status, DateTime CreatedAt, string? CustomerEmail);
 
 /// <summary>Request body to start a checkout.</summary>
 /// <param name="AmountCents">Amount in the smallest currency unit (cents). Example: 1999 means 19.99.</param>

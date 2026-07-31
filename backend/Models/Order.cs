@@ -39,4 +39,9 @@ public class Order
     // translate ORDER BY over DateTimeOffset into SQL. Always store UTC and
     // convert to the user's local time in the UI.
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // The account that created this order. Nullable: orders made before accounts
+    // existed have none. Set from the authenticated user in POST /orders.
+    public Guid? UserId { get; set; }
+    public AppUser? User { get; set; }
 }

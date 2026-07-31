@@ -114,7 +114,26 @@ public class OrdersApiTests
         Assert.Empty(db.Orders);
     }
 
+    [Fact]
+    public async Task Order_is_attributed_to_the_customer_who_created_it()
+    {
+        using var factory = new TestAppFactory();
+
+        // A customer registers and places an order.
+        var customer = await factory.CreateCustomerClientAsync("shopper@test.local", "hunter2!");
+        var created = await customer.PostAsJsonAsync("/orders", new { amountCents = 1999, currency = "eur" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        // The admin lists orders and sees who placed it.
+        var admin = await factory.CreateAuthenticatedClientAsync();
+        var orders = await admin.GetFromJsonAsync<List<OrderRow>>("/orders");
+
+        var row = Assert.Single(orders!);
+        Assert.Equal("shopper@test.local", row.CustomerEmail);
+    }
+
     // Response DTOs used only for deserializing in tests.
     private record HealthResponse(string Status);
     private record CreateOrderResponse(Guid OrderId, string ClientSecret, long AmountCents, string Currency);
+    private record OrderRow(Guid Id, long AmountCents, string Currency, string Status, DateTime CreatedAt, string? CustomerEmail);
 }

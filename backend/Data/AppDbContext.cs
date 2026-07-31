@@ -36,5 +36,13 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AppUser>()
             .Property(u => u.Role)
             .HasConversion<string>();
+
+        // Each order optionally belongs to one user. Keep the order if the user is
+        // ever deleted (null out the link rather than cascade-deleting orders).
+        modelBuilder.Entity<Order>()
+            .HasOne(o => o.User)
+            .WithMany()
+            .HasForeignKey(o => o.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
