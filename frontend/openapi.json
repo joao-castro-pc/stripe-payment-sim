@@ -457,8 +457,8 @@
       },
       "UserRole": {
         "enum": [
-          "Admin",
-          "Customer"
+          "Customer",
+          "Admin"
         ],
         "type": "string"
       }
