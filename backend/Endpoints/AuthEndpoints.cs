@@ -36,18 +36,7 @@ public static class AuthEndpoints
                 return Results.Json(new { error = "Invalid email or password." }, statusCode: StatusCodes.Status401Unauthorized);
             }
 
-            // Build the identity that the cookie will carry. These claims are what
-            // every later request sees via HttpContext.User once the cookie is sent.
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new(ClaimTypes.Email, user.Email),
-                new(ClaimTypes.Role, user.Role.ToString()),
-            };
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            // SignInAsync serializes the principal into the encrypted, HttpOnly cookie.
-            await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
-
+            await IssueCookie(http, user);
             log.LogInformation("✅ Login for {Email}", user.Email);
             return Results.Ok(new UserResponse(user.Email, user.Role));
         })
@@ -56,6 +45,49 @@ public static class AuthEndpoints
             .WithDescription("Verifies email/password and sets the auth cookie. Returns 200 with the user, or 401 if the credentials are wrong.")
             .Produces<UserResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
+
+        // Register a new customer account, then sign them in. Public (no auth): this
+        // is how shoppers create an account so they can check out. New accounts are
+        // always role Customer — never admin (that's the seeded account only).
+        app.MapPost("/auth/register", async (
+            RegisterRequest req,
+            AppDbContext db,
+            IPasswordHasher<AppUser> hasher,
+            HttpContext http) =>
+        {
+            var email = (req.Email ?? "").Trim().ToLowerInvariant();
+            if (email.Length < 3 || !email.Contains('@') || email.Contains(' '))
+                return Results.BadRequest(new { error = "A valid email is required." });
+            if ((req.Password ?? "").Length < 6)
+                return Results.BadRequest(new { error = "Password must be at least 6 characters." });
+
+            if (await db.Users.AnyAsync(u => u.Email == email))
+                return Results.Conflict(new { error = "An account with this email already exists." });
+
+            var user = new AppUser { Email = email, Role = UserRole.Customer };
+            user.PasswordHash = hasher.HashPassword(user, req.Password!);
+            db.Users.Add(user);
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Two concurrent registrations for the same email: the unique index
+                // rejects the loser. Surface it as a clean conflict, not a 500.
+                return Results.Conflict(new { error = "An account with this email already exists." });
+            }
+
+            await IssueCookie(http, user);
+            log.LogInformation("🆕 Registered customer {Email}", email);
+            return Results.Created("/auth/me", new UserResponse(user.Email, user.Role));
+        })
+            .WithTags("Auth")
+            .WithSummary("Register a customer")
+            .WithDescription("Creates a Customer account and signs them in. 400 on invalid input, 409 if the email is taken.")
+            .Produces<UserResponse>(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status409Conflict);
 
         // Sign out: clear the auth cookie. Safe to call even when not signed in.
         app.MapPost("/auth/logout", async (HttpContext http) =>
@@ -88,12 +120,31 @@ public static class AuthEndpoints
             .Produces<UserResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
     }
+
+    // Serialize the user's identity (id, email, role) into the encrypted, HttpOnly
+    // auth cookie. Shared by login and register.
+    private static Task IssueCookie(HttpContext http, AppUser user)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Role, user.Role.ToString()),
+        };
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        return http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+    }
 }
 
 /// <summary>Credentials for POST /auth/login.</summary>
 /// <param name="Email">Account email (case-insensitive).</param>
 /// <param name="Password">Account password (plaintext over HTTPS; verified against a stored hash).</param>
 public record LoginRequest(string Email, string Password);
+
+/// <summary>Details for POST /auth/register.</summary>
+/// <param name="Email">The new account's email (must be unique).</param>
+/// <param name="Password">The new account's password (min 6 chars).</param>
+public record RegisterRequest(string Email, string Password);
 
 /// <summary>The signed-in user, returned by login and /auth/me.</summary>
 /// <param name="Email">The user's email.</param>

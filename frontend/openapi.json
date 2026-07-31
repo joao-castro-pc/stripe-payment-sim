@@ -39,6 +39,43 @@
         }
       }
     },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a customer",
+        "description": "Creates a Customer account and signs them in. 400 on invalid input, 409 if the email is taken.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "409": {
+            "description": "Conflict"
+          }
+        }
+      }
+    },
     "/auth/logout": {
       "post": {
         "tags": [
@@ -369,6 +406,23 @@
         },
         "additionalProperties": false,
         "description": "Response returned when a refund is accepted (still pending)."
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "The new account's email (must be unique).",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "description": "The new account's password (min 6 chars).",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Details for POST /auth/register."
       },
       "String<>f__AnonymousType5": {
         "type": "object",

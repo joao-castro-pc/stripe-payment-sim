@@ -127,5 +127,70 @@ public class AuthTests
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
+    [Fact]
+    public async Task Register_creates_a_customer_and_signs_in()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+
+        var res = await client.PostAsJsonAsync("/auth/register",
+            new { email = "new@shop.local", password = "hunter2!" });
+
+        Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+        var user = await res.Content.ReadFromJsonAsync<UserDto>();
+        Assert.Equal("new@shop.local", user!.Email);
+        Assert.Equal("Customer", user.Role);
+        // Registration signs you in, so /auth/me now succeeds on the same client.
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/auth/me")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Register_duplicate_email_returns_409()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+        var body = new { email = "dupe@shop.local", password = "hunter2!" };
+
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/auth/register", body)).StatusCode);
+        // Second registration with the same email is rejected.
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/auth/register", body)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Register_weak_password_returns_400()
+    {
+        using var factory = new TestAppFactory();
+        var client = factory.CreateClient();
+
+        var res = await client.PostAsJsonAsync("/auth/register",
+            new { email = "weak@shop.local", password = "123" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Customer_cannot_list_orders_returns_403()
+    {
+        using var factory = new TestAppFactory();
+        var client = await factory.CreateCustomerClientAsync();
+
+        // Authenticated but not an admin -> 403 (not 401).
+        var res = await client.GetAsync("/orders");
+
+        Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Customer_can_create_an_order()
+    {
+        using var factory = new TestAppFactory();
+        var client = await factory.CreateCustomerClientAsync();
+
+        // Checkout is allowed for any signed-in user, admin or customer.
+        var res = await client.PostAsJsonAsync("/orders", new { amountCents = 1999, currency = "eur" });
+
+        Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+    }
+
     private record UserDto(string Email, string Role);
 }

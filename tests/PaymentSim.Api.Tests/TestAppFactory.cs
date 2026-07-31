@@ -78,6 +78,18 @@ public class TestAppFactory : WebApplicationFactory<Program>
         return client;
     }
 
+    // A client signed in as a freshly-registered Customer. Used to check that
+    // customer-role accounts can shop but can't reach admin-only endpoints.
+    public async Task<HttpClient> CreateCustomerClientAsync(
+        string email = "customer@test.local", string password = "customer-pw-123")
+    {
+        var client = CreateClient();
+        var res = await client.PostAsJsonAsync("/auth/register", new { email, password });
+        if (!res.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Test register failed: {res.StatusCode}");
+        return client;
+    }
+
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);

@@ -21,7 +21,7 @@ public static class OrderEndpoints
             .WithSummary("List all orders")
             .WithDescription("Returns every order, newest first. Use it to see an order flip from Pending to Paid after a webhook.")
             .Produces<List<Order>>(StatusCodes.Status200OK)
-            .RequireAuthorization(); // admin data — sign-in required
+            .RequireAuthorization("Admin"); // admin-only: full order list
 
         // Server-Sent Events: a long-lived connection the browser opens once. The
         // backend PUSHES a line whenever an order changes (leg B). This replaces
@@ -55,7 +55,7 @@ public static class OrderEndpoints
           // Same admin data as GET /orders. EventSource can't send an Authorization
           // header, but it DOES send cookies on same-origin requests — another reason
           // cookie auth fits here where a bearer token wouldn't.
-          .RequireAuthorization();
+          .RequireAuthorization("Admin");
 
         // Start a checkout: create our order (Pending) AND a Stripe PaymentIntent.
         // Returns the clientSecret the frontend needs to confirm the card payment.
@@ -182,7 +182,7 @@ public static class OrderEndpoints
             .Produces<RefundResponse>(StatusCodes.Status202Accepted)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound)
-            .RequireAuthorization(); // admin action
+            .RequireAuthorization("Admin"); // admin-only action
     }
 }
 

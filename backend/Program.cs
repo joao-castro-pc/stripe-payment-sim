@@ -67,7 +67,11 @@ builder.Services
         options.Events.OnRedirectToLogin = ctx => { ctx.Response.StatusCode = StatusCodes.Status401Unauthorized; return Task.CompletedTask; };
         options.Events.OnRedirectToAccessDenied = ctx => { ctx.Response.StatusCode = StatusCodes.Status403Forbidden; return Task.CompletedTask; };
     });
-builder.Services.AddAuthorization();
+// "Admin" policy: the admin dashboard, order listing, refunds and the SSE stream
+// require the Admin role — a signed-in Customer must not reach them. Plain
+// RequireAuthorization (any authenticated user) still gates checkout.
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy("Admin", policy => policy.RequireRole(nameof(UserRole.Admin))));
 
 // Swagger: an in-browser UI to explore and call the API by hand (dev only).
 builder.Services.AddEndpointsApiExplorer();
