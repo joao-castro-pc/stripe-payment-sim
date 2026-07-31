@@ -87,7 +87,21 @@ export default function ProductDetailPage() {
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{product.description}</p>
 
             <div className="mt-6 flex items-end justify-between">
-              <span className="font-serif text-4xl text-gold">{format(product.price)}</span>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="font-serif text-4xl text-gold">{format(product.price)}</span>
+                {product.discountPercentage ? (
+                  <>
+                    {/* Original (pre-discount) price, computed from the charged price —
+                        we don't change what's charged, just show the saving. */}
+                    <span className="font-mono text-sm text-muted-foreground line-through">
+                      {format(product.price / (1 - product.discountPercentage / 100))}
+                    </span>
+                    <span className="rounded bg-gold/15 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-gold">
+                      −{Math.round(product.discountPercentage)}%
+                    </span>
+                  </>
+                ) : null}
+              </div>
               <span className="font-mono text-xs tabular-nums text-muted-foreground">
                 {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
               </span>

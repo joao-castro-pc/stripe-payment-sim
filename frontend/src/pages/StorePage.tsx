@@ -28,6 +28,11 @@ function ProductCard({ product }: { product: Product }) {
           <span className="absolute left-3 top-3 rounded-full bg-background/70 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground backdrop-blur-sm">
             {product.category}
           </span>
+          {product.discountPercentage ? (
+            <span className="absolute right-3 top-3 rounded-full bg-gold px-2 py-0.5 font-mono text-[10px] font-semibold text-[#1a1712]">
+              −{Math.round(product.discountPercentage)}%
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-1 flex-col gap-2 p-5 pb-0">
           <h3 className="line-clamp-2 font-serif text-lg leading-snug text-card-foreground">{product.title}</h3>
@@ -37,7 +42,14 @@ function ProductCard({ product }: { product: Product }) {
           </div>
           {/* Price in the serif + gold — the one indulgent note; stock stays mono/quiet. */}
           <div className="mt-auto flex items-baseline justify-between pt-2">
-            <span className="font-serif text-2xl text-gold">{format(product.price)}</span>
+            <span className="flex items-baseline gap-1.5">
+              <span className="font-serif text-2xl text-gold">{format(product.price)}</span>
+              {product.discountPercentage ? (
+                <span className="font-mono text-[11px] text-muted-foreground line-through">
+                  {format(product.price / (1 - product.discountPercentage / 100))}
+                </span>
+              ) : null}
+            </span>
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{product.stock} in stock</span>
           </div>
         </div>
