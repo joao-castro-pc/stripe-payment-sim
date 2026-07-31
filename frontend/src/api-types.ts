@@ -228,9 +228,9 @@ export interface paths {
         put?: never;
         /**
          * Start a checkout
-         * @description Creates a Pending order and a matching Stripe PaymentIntent, then returns the clientSecret the frontend uses to confirm the card.
+         * @description Creates a Pending order (with its line items) and a matching Stripe PaymentIntent, then returns the clientSecret the frontend uses to confirm the card.
          *
-         *     Body: amountCents (integer, in cents — 1999 = 19.99) and currency (lowercase ISO code, e.g. "eur").
+         *     Body: currency (lowercase ISO code, e.g. "eur") and items[] (each with productId, title, unitAmountCents, quantity). The charged total is the sum of the items.
          */
         post: {
             parameters: {
@@ -272,6 +272,54 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/orders/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one order with its line items
+         * @description Returns a single order plus the products it contains and its Stripe PaymentIntent id. Powers the admin order-detail page.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OrderDetailResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -359,7 +407,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["String<>f__AnonymousType5"];
+                        "application/json": components["schemas"]["String<>f__AnonymousType6"];
                     };
                 };
             };
@@ -422,15 +470,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description Request body to start a checkout. */
+        /** @description Request body to start a checkout. The charged total is the sum of the items. */
         CreateOrderRequest: {
-            /**
-             * Format: int64
-             * @description Amount in the smallest currency unit (cents). Example: 1999 means 19.99.
-             */
-            amountCents?: number;
             /** @description Lowercase ISO currency code. Example: "eur". */
             currency?: string | null;
+            /** @description The line items being purchased (at least one). */
+            items?: components["schemas"]["OrderItemInput"][] | null;
         };
         /** @description Response returned when a checkout starts. */
         CreateOrderResponse: {
@@ -455,6 +500,77 @@ export interface components {
             email?: string | null;
             /** @description Account password (plaintext over HTTPS; verified against a stored hash). */
             password?: string | null;
+        };
+        /** @description Full detail of one order, including its line items — the admin detail view. */
+        OrderDetailResponse: {
+            /**
+             * Format: uuid
+             * @description The order id.
+             */
+            id?: string;
+            /**
+             * Format: int64
+             * @description Total amount in the smallest currency unit (cents).
+             */
+            amountCents?: number;
+            /** @description Lowercase ISO currency code, e.g. "eur". */
+            currency?: string | null;
+            status?: components["schemas"]["OrderStatus"];
+            /**
+             * Format: date-time
+             * @description When the order was created (UTC).
+             */
+            createdAt?: string;
+            /** @description Email of the account that placed it, or null if none. */
+            customerEmail?: string | null;
+            /** @description The Stripe PaymentIntent id (deep-link to the Stripe dashboard). */
+            stripePaymentIntentId?: string | null;
+            /** @description The products purchased. */
+            items?: components["schemas"]["OrderItemResponse"][] | null;
+        };
+        /** @description One line item in a checkout request. */
+        OrderItemInput: {
+            /**
+             * Format: int32
+             * @description The catalog (DummyJSON) product id. 0 for the admin's manual charge.
+             */
+            productId?: number;
+            /** @description The product title, shown later in the order detail. */
+            title?: string | null;
+            /**
+             * Format: int64
+             * @description Unit price in the smallest unit of the order currency (cents).
+             */
+            unitAmountCents?: number;
+            /**
+             * Format: int32
+             * @description How many of this product (positive integer).
+             */
+            quantity?: number;
+            /** @description Optional product image URL. */
+            thumbnail?: string | null;
+        };
+        /** @description One line item as returned in an order's detail. */
+        OrderItemResponse: {
+            /**
+             * Format: int32
+             * @description The catalog product id (0 for a manual charge).
+             */
+            productId?: number;
+            /** @description The product title snapshot. */
+            title?: string | null;
+            /**
+             * Format: int64
+             * @description Unit price in the smallest currency unit (cents).
+             */
+            unitAmountCents?: number;
+            /**
+             * Format: int32
+             * @description How many of this product.
+             */
+            quantity?: number;
+            /** @description Product image URL, or null. */
+            thumbnail?: string | null;
         };
         /** @description An order as shown in the admin list, with the customer who placed it. */
         OrderResponse: {
@@ -510,7 +626,7 @@ export interface components {
             /** @description The new account's password (min 6 chars). */
             password?: string | null;
         };
-        "String<>f__AnonymousType5": {
+        "String<>f__AnonymousType6": {
             status?: string | null;
         };
         /** @description The signed-in user, returned by login and /auth/me. */
@@ -520,7 +636,7 @@ export interface components {
             role?: components["schemas"]["UserRole"];
         };
         /** @enum {string} */
-        UserRole: "Admin" | "Customer";
+        UserRole: "Customer" | "Admin";
     };
     responses: never;
     parameters: never;

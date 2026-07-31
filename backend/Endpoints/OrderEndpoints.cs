@@ -30,6 +30,35 @@ public static class OrderEndpoints
             .Produces<List<OrderResponse>>(StatusCodes.Status200OK)
             .RequireAuthorization("Admin"); // admin-only: full order list
 
+        // One order in full, with its line items and PaymentIntent id — the admin
+        // order-detail view. Projected to a DTO so we never leak the entity (and so
+        // the shape appears in the OpenAPI contract for the frontend).
+        app.MapGet("/orders/{id:guid}", async (Guid id, AppDbContext db) =>
+        {
+            var order = await db.Orders
+                .Where(o => o.Id == id)
+                .Select(o => new OrderDetailResponse(
+                    o.Id, o.AmountCents, o.Currency, o.Status, o.CreatedAt,
+                    o.User != null ? o.User.Email : null,
+                    o.StripePaymentIntentId,
+                    o.Items
+                        .OrderBy(i => i.Title)
+                        .Select(i => new OrderItemResponse(
+                            i.ProductId, i.Title, i.UnitAmountCents, i.Quantity, i.Thumbnail))
+                        .ToList()))
+                .FirstOrDefaultAsync();
+
+            return order is null
+                ? Results.NotFound(new { error = "Order not found." })
+                : Results.Ok(order);
+        })
+            .WithTags("Orders")
+            .WithSummary("Get one order with its line items")
+            .WithDescription("Returns a single order plus the products it contains and its Stripe PaymentIntent id. Powers the admin order-detail page.")
+            .Produces<OrderDetailResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound)
+            .RequireAuthorization("Admin"); // admin-only: full order detail
+
         // Server-Sent Events: a long-lived connection the browser opens once. The
         // backend PUSHES a line whenever an order changes (leg B). This replaces
         // frontend polling — no repeated requests, near-instant updates.
@@ -74,12 +103,28 @@ public static class OrderEndpoints
                 return Results.Problem("Stripe secret key not configured. Set Stripe:SecretKey via user-secrets.");
             }
 
-            // Cheap sanity check before calling Stripe: a non-positive amount is
-            // obviously the caller's mistake, so fail fast with 400.
-            if (req.AmountCents <= 0)
+            // An order must have at least one line item — the total is derived from them.
+            if (req.Items is null || req.Items.Count == 0)
             {
-                checkoutLog.LogWarning("⚠️ Rejected checkout with invalid amount {Amount}", req.AmountCents);
-                return Results.BadRequest(new { error = "amountCents must be a positive integer (cents)." });
+                checkoutLog.LogWarning("⚠️ Rejected checkout with no items");
+                return Results.BadRequest(new { error = "An order must contain at least one item." });
+            }
+
+            // Validate every line before touching Stripe.
+            // TRUST NOTE: the unit prices come from the CLIENT, because the catalog is
+            // the external DummyJSON API, not our own DB — so we can't re-price against a
+            // source of truth we own. This is the same trust gap the old client-sent
+            // amountCents already had. For this learning project we STORE what the client
+            // sends; a real store would re-price every line server-side against its own
+            // product table before charging (else a hostile client could under-price).
+            foreach (var item in req.Items)
+            {
+                if (string.IsNullOrWhiteSpace(item.Title))
+                    return Results.BadRequest(new { error = "Each item needs a title." });
+                if (item.Quantity <= 0)
+                    return Results.BadRequest(new { error = "Each item quantity must be a positive integer." });
+                if (item.UnitAmountCents <= 0)
+                    return Results.BadRequest(new { error = "Each item unitAmountCents must be a positive integer (cents)." });
             }
 
             // Normalize currency to a lowercase ISO 4217 code (Stripe wants lowercase).
@@ -92,12 +137,29 @@ public static class OrderEndpoints
                 return Results.BadRequest(new { error = "currency must be a 3-letter ISO code (e.g. \"eur\")." });
             }
 
-            checkoutLog.LogInformation("🛒 Checkout requested: {Amount} {Currency}", req.AmountCents, currency);
+            // The amount charged is SUMMED server-side from the line items — we never
+            // trust a separate client-sent total (it could disagree with the lines).
+            var total = req.Items.Sum(i => i.UnitAmountCents * i.Quantity);
 
-            // 1. Build the order object (not saved yet — we only persist if Stripe succeeds).
-            //    Attribute it to the signed-in user (the endpoint requires auth, so the
-            //    id claim is always present).
-            var order = new Order { AmountCents = req.AmountCents, Currency = currency };
+            checkoutLog.LogInformation("🛒 Checkout requested: {Count} item(s), {Amount} {Currency}",
+                req.Items.Count, total, currency);
+
+            // 1. Build the order + its items (not saved yet — we only persist if Stripe
+            //    succeeds). Attribute it to the signed-in user (the endpoint requires
+            //    auth, so the id claim is always present).
+            var order = new Order
+            {
+                AmountCents = total,
+                Currency = currency,
+                Items = req.Items.Select(i => new OrderItem
+                {
+                    ProductId = i.ProductId,
+                    Title = i.Title.Trim(),
+                    UnitAmountCents = i.UnitAmountCents,
+                    Quantity = i.Quantity,
+                    Thumbnail = i.Thumbnail,
+                }).ToList(),
+            };
             if (Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
                 order.UserId = userId;
 
@@ -106,8 +168,7 @@ public static class OrderEndpoints
             PaymentIntentResult intent;
             try
             {
-                intent = await payments.CreatePaymentIntentAsync(
-                    req.AmountCents, currency, order.Id.ToString());
+                intent = await payments.CreatePaymentIntentAsync(total, currency, order.Id.ToString());
             }
             catch (PaymentGatewayException ex)
             {
@@ -118,13 +179,14 @@ public static class OrderEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
 
-            // 3. Provider accepted it: now persist the order with its PaymentIntent id.
+            // 3. Provider accepted it: now persist the order (its items cascade-insert
+            //    through the navigation) with its PaymentIntent id.
             order.StripePaymentIntentId = intent.Id;
             db.Orders.Add(order);
             await db.SaveChangesAsync();
 
-            checkoutLog.LogInformation("🧾 Order {Order} created ({Amount} {Currency}), PaymentIntent {Pi}",
-                order.Id, order.AmountCents, order.Currency, intent.Id);
+            checkoutLog.LogInformation("🧾 Order {Order} created ({Amount} {Currency}, {Count} item(s)), PaymentIntent {Pi}",
+                order.Id, order.AmountCents, order.Currency, order.Items.Count, intent.Id);
 
             // 4. Hand the clientSecret to the frontend so Stripe.js can confirm the payment.
             //    Returned as a named record (not an anonymous object) so it appears in
@@ -135,9 +197,10 @@ public static class OrderEndpoints
             .WithTags("Orders")
             .WithSummary("Start a checkout")
             .WithDescription(
-                "Creates a Pending order and a matching Stripe PaymentIntent, then returns the " +
-                "clientSecret the frontend uses to confirm the card.\n\n" +
-                "Body: amountCents (integer, in cents — 1999 = 19.99) and currency (lowercase ISO code, e.g. \"eur\").")
+                "Creates a Pending order (with its line items) and a matching Stripe PaymentIntent, " +
+                "then returns the clientSecret the frontend uses to confirm the card.\n\n" +
+                "Body: currency (lowercase ISO code, e.g. \"eur\") and items[] (each with productId, " +
+                "title, unitAmountCents, quantity). The charged total is the sum of the items.")
             .Produces<CreateOrderResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status500InternalServerError)
@@ -207,10 +270,39 @@ public static class OrderEndpoints
 public record OrderResponse(
     Guid Id, long AmountCents, string Currency, OrderStatus Status, DateTime CreatedAt, string? CustomerEmail);
 
-/// <summary>Request body to start a checkout.</summary>
-/// <param name="AmountCents">Amount in the smallest currency unit (cents). Example: 1999 means 19.99.</param>
+/// <summary>Request body to start a checkout. The charged total is the sum of the items.</summary>
 /// <param name="Currency">Lowercase ISO currency code. Example: "eur".</param>
-public record CreateOrderRequest(long AmountCents, string Currency);
+/// <param name="Items">The line items being purchased (at least one).</param>
+public record CreateOrderRequest(string Currency, IReadOnlyList<OrderItemInput> Items);
+
+/// <summary>One line item in a checkout request.</summary>
+/// <param name="ProductId">The catalog (DummyJSON) product id. 0 for the admin's manual charge.</param>
+/// <param name="Title">The product title, shown later in the order detail.</param>
+/// <param name="UnitAmountCents">Unit price in the smallest unit of the order currency (cents).</param>
+/// <param name="Quantity">How many of this product (positive integer).</param>
+/// <param name="Thumbnail">Optional product image URL.</param>
+public record OrderItemInput(int ProductId, string Title, long UnitAmountCents, int Quantity, string? Thumbnail);
+
+/// <summary>One line item as returned in an order's detail.</summary>
+/// <param name="ProductId">The catalog product id (0 for a manual charge).</param>
+/// <param name="Title">The product title snapshot.</param>
+/// <param name="UnitAmountCents">Unit price in the smallest currency unit (cents).</param>
+/// <param name="Quantity">How many of this product.</param>
+/// <param name="Thumbnail">Product image URL, or null.</param>
+public record OrderItemResponse(int ProductId, string Title, long UnitAmountCents, int Quantity, string? Thumbnail);
+
+/// <summary>Full detail of one order, including its line items — the admin detail view.</summary>
+/// <param name="Id">The order id.</param>
+/// <param name="AmountCents">Total amount in the smallest currency unit (cents).</param>
+/// <param name="Currency">Lowercase ISO currency code, e.g. "eur".</param>
+/// <param name="Status">Order status (Pending/Paid/Failed/Refunded).</param>
+/// <param name="CreatedAt">When the order was created (UTC).</param>
+/// <param name="CustomerEmail">Email of the account that placed it, or null if none.</param>
+/// <param name="StripePaymentIntentId">The Stripe PaymentIntent id (deep-link to the Stripe dashboard).</param>
+/// <param name="Items">The products purchased.</param>
+public record OrderDetailResponse(
+    Guid Id, long AmountCents, string Currency, OrderStatus Status, DateTime CreatedAt,
+    string? CustomerEmail, string? StripePaymentIntentId, IReadOnlyList<OrderItemResponse> Items);
 
 /// <summary>Response returned when a checkout starts.</summary>
 /// <param name="OrderId">The new order's id.</param>

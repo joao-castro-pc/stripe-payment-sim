@@ -18,6 +18,9 @@ public class AppDbContext : DbContext
     // Accounts that can sign in (currently just the seeded admin).
     public DbSet<AppUser> Users => Set<AppUser>();
 
+    // The "OrderItems" table: the line items of each order.
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // Store the enum as readable text ("Pending"/"Paid") in the DB column
@@ -44,5 +47,14 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(o => o.UserId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // An order has many line items. Deleting an order removes its items
+        // (cascade): unlike the user link, items are part of the order and have no
+        // standalone meaning.
+        modelBuilder.Entity<Order>()
+            .HasMany(o => o.Items)
+            .WithOne(i => i.Order)
+            .HasForeignKey(i => i.OrderId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

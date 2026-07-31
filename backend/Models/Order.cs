@@ -44,4 +44,9 @@ public class Order
     // existed have none. Set from the authenticated user in POST /orders.
     public Guid? UserId { get; set; }
     public AppUser? User { get; set; }
+
+    // The line items purchased in this order (one-to-many). Populated at checkout
+    // from the cart; the admin order detail lists them. Cascade-deleted with the
+    // order (they have no meaning on their own).
+    public List<OrderItem> Items { get; set; } = [];
 }

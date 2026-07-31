@@ -187,7 +187,8 @@ public class AuthTests
         var client = await factory.CreateCustomerClientAsync();
 
         // Checkout is allowed for any signed-in user, admin or customer.
-        var res = await client.PostAsJsonAsync("/orders", new { amountCents = 1999, currency = "eur" });
+        var res = await client.PostAsJsonAsync("/orders",
+            new { currency = "eur", items = new[] { new { productId = 1, title = "Test product", unitAmountCents = 1999, quantity = 1, thumbnail = (string?)null } } });
 
         Assert.Equal(HttpStatusCode.Created, res.StatusCode);
     }
