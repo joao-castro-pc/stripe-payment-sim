@@ -19,7 +19,7 @@ export interface Product {
   discountPercentage?: number
 }
 
-// DummyJSON wraps the list in an envelope; we only care about `products`.
+// DummyJSON wraps every list in this envelope; `total` drives pagination.
 interface ProductsResponse {
   products: Product[]
   total: number
@@ -27,14 +27,44 @@ interface ProductsResponse {
   limit: number
 }
 
+// One page of results plus the total count of the whole (server-side) result set.
+export interface ProductPage {
+  products: Product[]
+  total: number
+}
+
 const BASE = 'https://dummyjson.com'
 
-// limit=0 is a DummyJSON convention that returns the entire catalog.
-export async function listProducts(limit = 24): Promise<Product[]> {
-  const res = await fetch(`${BASE}/products?limit=${limit}`)
+// Fetch one page of products, letting the SERVER do the search/category filtering
+// and paging (skip/limit) — so we never have to hold the whole catalog in memory.
+// The three modes are mutually exclusive (see StorePage): a search query, a single
+// category, or the full catalog. Each DummyJSON endpoint returns the same envelope
+// with a `total` we use to know when there are no more pages.
+export async function fetchProducts(
+  { q, category, limit = 24, skip = 0 }: { q?: string; category?: string; limit?: number; skip?: number },
+): Promise<ProductPage> {
+  const params = new URLSearchParams({ limit: String(limit), skip: String(skip) })
+  let path: string
+  if (q && q.trim()) {
+    params.set('q', q.trim())
+    path = `/products/search?${params}`
+  } else if (category && category !== 'all') {
+    path = `/products/category/${encodeURIComponent(category)}?${params}`
+  } else {
+    path = `/products?${params}`
+  }
+
+  const res = await fetch(`${BASE}${path}`)
   if (!res.ok) throw new Error(`DummyJSON products failed: ${res.status}`)
   const data: ProductsResponse = await res.json()
-  return data.products
+  return { products: data.products, total: data.total }
+}
+
+// The list of category slugs, for the filter dropdown.
+export async function fetchCategories(): Promise<string[]> {
+  const res = await fetch(`${BASE}/products/category-list`)
+  if (!res.ok) throw new Error(`DummyJSON categories failed: ${res.status}`)
+  return res.json() as Promise<string[]>
 }
 
 // One product in full (images gallery, brand, description) for the detail page.

@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Search } from 'lucide-react'
-import { listProducts, type Product } from '@/dummyjson'
+import { fetchProducts, fetchCategories, type Product } from '@/dummyjson'
 import { useCart } from '@/cart/CartContext'
 import { useCurrency } from '@/currency/CurrencyContext'
 import { Stars } from '@/components/Stars'
 import { Button } from '@/components/ui/button'
+
+const PAGE_SIZE = 24
 
 function ProductCard({ product }: { product: Product }) {
   const { add } = useCart()
@@ -63,32 +65,69 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 export default function StorePage() {
-  const { data: products, isPending, isError, error } = useQuery({
-    queryKey: ['products'],
-    // Fetch the WHOLE catalog (DummyJSON: limit=0 returns all ~200 products) so
-    // search and the category list cover everything, not just the first page.
-    queryFn: () => listProducts(0),
-    staleTime: 5 * 60_000,
-  })
-
   const [category, setCategory] = useState('all')
   const [query, setQuery] = useState('')
+  // Debounce the search text so we fire one request after the user pauses, not one
+  // per keystroke.
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300)
+    return () => clearTimeout(t)
+  }, [query])
 
-  // Distinct categories, derived from the fetched products (no extra request).
-  const categories = useMemo(() => {
-    if (!products) return []
-    return Array.from(new Set(products.map((p) => p.category))).sort()
-  }, [products])
+  // Search and category are mutually exclusive: typing a search clears the category,
+  // picking a category clears the search. Keeps the server query single-mode.
+  const onSearch = (v: string) => {
+    setQuery(v)
+    if (v) setCategory('all')
+  }
+  const onCategory = (c: string) => {
+    setCategory(c)
+    setQuery('')
+    setDebouncedQuery('')
+  }
 
-  const filtered = useMemo(() => {
-    if (!products) return []
-    const q = query.trim().toLowerCase()
-    return products.filter(
-      (p) =>
-        (category === 'all' || p.category === category) &&
-        (q === '' || p.title.toLowerCase().includes(q)),
+  // Category slugs for the dropdown (static catalog → cache forever).
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories'],
+    queryFn: fetchCategories,
+    staleTime: Infinity,
+  })
+
+  // Server-side paged fetch. Each page carries `total`; we ask for the next page
+  // until we've loaded them all. The query key includes the active filter so
+  // switching search/category starts a fresh paged list.
+  const { data, isPending, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ['products', { q: debouncedQuery, category }],
+      queryFn: ({ pageParam }) =>
+        fetchProducts({ q: debouncedQuery, category, limit: PAGE_SIZE, skip: pageParam }),
+      initialPageParam: 0,
+      getNextPageParam: (lastPage, allPages) => {
+        const loaded = allPages.reduce((n, p) => n + p.products.length, 0)
+        return loaded < lastPage.total ? loaded : undefined
+      },
+      staleTime: 5 * 60_000,
+    })
+
+  const products = data?.pages.flatMap((p) => p.products) ?? []
+  const total = data?.pages[0]?.total ?? 0
+
+  // Infinite scroll: load the next page when a sentinel near the bottom scrolls
+  // into view. rootMargin pre-loads before it's actually visible.
+  const sentinel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || !hasNextPage) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isFetchingNextPage) fetchNextPage()
+      },
+      { rootMargin: '600px' },
     )
-  }, [products, category, query])
+    io.observe(el)
+    return () => io.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -112,52 +151,58 @@ export default function StorePage() {
         </div>
       </section>
 
-      {isPending && <p className="font-mono text-sm text-muted-foreground">Loading the collection…</p>}
-      {isError && <p className="text-destructive">Error: {(error as Error).message}</p>}
+      {/* Search + category on one row (desktop). Always visible, even while a
+          filter's first page loads. */}
+      <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative sm:max-w-md sm:flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder="Search the collection…"
+            className="w-full rounded-xl border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-gold/60 focus-visible:ring-2 focus-visible:ring-gold/20"
+          />
+        </div>
 
-      {products && (
+        <select
+          value={category}
+          onChange={(e) => onCategory(e.target.value)}
+          aria-label="Category"
+          className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm capitalize text-foreground outline-none transition focus-visible:border-gold/60 focus-visible:ring-2 focus-visible:ring-gold/20 sm:w-56"
+        >
+          <option value="all">All categories</option>
+          {categories.map((c) => (
+            <option key={c} value={c} className="capitalize">
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {isError ? (
+        <p className="text-destructive">Error: {(error as Error).message}</p>
+      ) : isPending ? (
+        <p className="font-mono text-sm text-muted-foreground">Loading the collection…</p>
+      ) : products.length === 0 ? (
+        <p className="py-16 text-center font-serif text-lg text-muted-foreground">Nothing in the mix matches your search.</p>
+      ) : (
         <>
-          {/* Search + category on one row (desktop). */}
-          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative sm:max-w-md sm:flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search the collection…"
-                className="w-full rounded-xl border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-gold/60 focus-visible:ring-2 focus-visible:ring-gold/20"
-              />
-            </div>
-
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              aria-label="Category"
-              className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm capitalize text-foreground outline-none transition focus-visible:border-gold/60 focus-visible:ring-2 focus-visible:ring-gold/20 sm:w-56"
-            >
-              <option value="all">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c} className="capitalize">
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Piece count — boutique vernacular, in the quiet mono. */}
+          {/* Piece count — the full server-side total, not just what's loaded. */}
           <p className="mb-5 font-mono text-xs tabular-nums text-muted-foreground">
-            {filtered.length} {filtered.length === 1 ? 'piece' : 'pieces'}
+            {total} {total === 1 ? 'piece' : 'pieces'}
           </p>
 
-          {filtered.length === 0 ? (
-            <p className="py-16 text-center font-serif text-lg text-muted-foreground">Nothing in the mix matches your search.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-              {filtered.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+            {products.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+
+          {/* Sentinel: scrolling near it loads the next page. */}
+          <div ref={sentinel} aria-hidden="true" className="h-10" />
+          {isFetchingNextPage && (
+            <p className="pb-4 text-center font-mono text-xs text-muted-foreground">Loading more…</p>
           )}
         </>
       )}
