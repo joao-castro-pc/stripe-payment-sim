@@ -33,9 +33,19 @@ createRoot(document.getElementById('root')!).render(
             </CurrencyProvider>
           </BrowserRouter>
         </Elements>
-        {/* Toast notifications for actions (payment, delete). Top-left so they
-            never overlap the cart/controls on the right; offset clears the nav. */}
-        <Toaster richColors position="top-left" offset={72} visibleToasts={4} />
+        {/* Toast notifications for actions (payment, delete). Bottom-center is the
+            mobile-web convention (a Material-style snackbar): it never covers the
+            sticky top nav, so the cart/controls stay tappable while a toast shows.
+            Swipe to dismiss, or it auto-closes. */}
+        <Toaster
+          richColors
+          position="bottom-center"
+          offset={16}
+          // On mobile the cart / back-to-top FABs sit bottom-right; lift the toast
+          // above them (Material-snackbar style) so they never overlap.
+          mobileOffset={{ bottom: '96px' }}
+          visibleToasts={3}
+        />
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
