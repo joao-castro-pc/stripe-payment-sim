@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -27,6 +28,11 @@ public class TestAppFactory : WebApplicationFactory<Program>
     // test payloads (see StripeSignature). Any non-empty string works.
     public const string WebhookSecret = "whsec_test_secret";
 
+    // Credentials for the admin the app seeds at startup (from config below).
+    // Tests log in with these to reach the auth-protected endpoints.
+    public const string AdminEmail = "admin@test.local";
+    public const string AdminPassword = "test-password-123";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         _connection.Open();
@@ -39,6 +45,9 @@ public class TestAppFactory : WebApplicationFactory<Program>
                 // The fake gateway never actually uses it.
                 ["Stripe:SecretKey"] = "sk_test_dummy",
                 ["Stripe:WebhookSecret"] = WebhookSecret,
+                // Seeds the admin account (see Program.cs) so auth tests can log in.
+                ["Admin:Email"] = AdminEmail,
+                ["Admin:Password"] = AdminPassword,
             });
         });
 
@@ -54,6 +63,19 @@ public class TestAppFactory : WebApplicationFactory<Program>
             services.RemoveAll<IPaymentGateway>();
             services.AddSingleton<IPaymentGateway>(Payments);
         });
+    }
+
+    // A client that has signed in as the seeded admin. CreateClient() keeps cookies
+    // (HandleCookies defaults to true), so the auth cookie set by /auth/login is
+    // resent on every later request — exactly like a real browser.
+    public async Task<HttpClient> CreateAuthenticatedClientAsync()
+    {
+        var client = CreateClient();
+        var res = await client.PostAsJsonAsync("/auth/login",
+            new { email = AdminEmail, password = AdminPassword });
+        if (!res.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Test login failed: {res.StatusCode}");
+        return client;
     }
 
     protected override void Dispose(bool disposing)

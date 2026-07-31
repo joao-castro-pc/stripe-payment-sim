@@ -14,7 +14,7 @@ public class RefundTests
     public async Task Refund_unknown_order_returns_404()
     {
         using var factory = new TestAppFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
 
         var response = await client.PostAsync($"/orders/{Guid.NewGuid()}/refund", null);
 
@@ -28,7 +28,7 @@ public class RefundTests
     public async Task Refund_non_paid_order_returns_400(OrderStatus status)
     {
         using var factory = new TestAppFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
         var id = SeedOrder(factory, status, "pi_x");
 
         var response = await client.PostAsync($"/orders/{id}/refund", null);
@@ -42,7 +42,7 @@ public class RefundTests
     public async Task Refund_paid_order_returns_202_and_asks_gateway()
     {
         using var factory = new TestAppFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
         var id = SeedOrder(factory, OrderStatus.Paid, "pi_paid");
 
         var response = await client.PostAsync($"/orders/{id}/refund", null);
@@ -66,7 +66,7 @@ public class RefundTests
     {
         using var factory = new TestAppFactory();
         factory.Payments.RefundShouldFail = true;
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
         var id = SeedOrder(factory, OrderStatus.Paid, "pi_paid");
 
         var response = await client.PostAsync($"/orders/{id}/refund", null);

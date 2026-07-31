@@ -20,7 +20,8 @@ public static class OrderEndpoints
             .WithTags("Orders")
             .WithSummary("List all orders")
             .WithDescription("Returns every order, newest first. Use it to see an order flip from Pending to Paid after a webhook.")
-            .Produces<List<Order>>(StatusCodes.Status200OK);
+            .Produces<List<Order>>(StatusCodes.Status200OK)
+            .RequireAuthorization(); // admin data — sign-in required
 
         // Server-Sent Events: a long-lived connection the browser opens once. The
         // backend PUSHES a line whenever an order changes (leg B). This replaces
@@ -50,7 +51,11 @@ public static class OrderEndpoints
             {
                 notifier.Unsubscribe(id);
             }
-        }).ExcludeFromDescription();
+        }).ExcludeFromDescription()
+          // Same admin data as GET /orders. EventSource can't send an Authorization
+          // header, but it DOES send cookies on same-origin requests — another reason
+          // cookie auth fits here where a bearer token wouldn't.
+          .RequireAuthorization();
 
         // Start a checkout: create our order (Pending) AND a Stripe PaymentIntent.
         // Returns the clientSecret the frontend needs to confirm the card payment.
@@ -124,7 +129,8 @@ public static class OrderEndpoints
                 "Body: amountCents (integer, in cents — 1999 = 19.99) and currency (lowercase ISO code, e.g. \"eur\").")
             .Produces<CreateOrderResponse>(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status500InternalServerError);
+            .ProducesProblem(StatusCodes.Status500InternalServerError)
+            .RequireAuthorization(); // must be signed in to buy
 
         // Refund a paid order. We ASK Stripe to refund, then return 202 Accepted:
         // the order only becomes Refunded when the charge.refunded webhook arrives
@@ -175,7 +181,8 @@ public static class OrderEndpoints
                 "Fails with 404 if the order doesn't exist, or 400 if it isn't Paid.")
             .Produces<RefundResponse>(StatusCodes.Status202Accepted)
             .Produces(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status404NotFound)
+            .RequireAuthorization(); // admin action
     }
 }
 

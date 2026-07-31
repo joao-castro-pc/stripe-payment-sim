@@ -27,7 +27,7 @@ public class OrdersApiTests
     public async Task CreateOrder_with_valid_amount_creates_pending_order()
     {
         using var factory = new TestAppFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
 
         var response = await client.PostAsJsonAsync("/orders", new { amountCents = 1999, currency = "eur" });
 
@@ -56,7 +56,7 @@ public class OrdersApiTests
     public async Task CreateOrder_with_non_positive_amount_returns_400(long amountCents)
     {
         using var factory = new TestAppFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
 
         var response = await client.PostAsJsonAsync("/orders", new { amountCents, currency = "eur" });
 
@@ -69,7 +69,7 @@ public class OrdersApiTests
     public async Task CreateOrder_normalizes_currency_to_lowercase()
     {
         using var factory = new TestAppFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
 
         var response = await client.PostAsJsonAsync("/orders", new { amountCents = 1999, currency = "USD" });
 
@@ -88,7 +88,7 @@ public class OrdersApiTests
     public async Task CreateOrder_with_invalid_currency_returns_400(string currency)
     {
         using var factory = new TestAppFactory();
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
 
         var response = await client.PostAsJsonAsync("/orders", new { amountCents = 1999, currency });
 
@@ -103,7 +103,7 @@ public class OrdersApiTests
         using var factory = new TestAppFactory();
         factory.Payments.ShouldFail = true;
         factory.Payments.FailMessage = "Amount must be at least €0.50";
-        var client = factory.CreateClient();
+        var client = await factory.CreateAuthenticatedClientAsync();
 
         var response = await client.PostAsJsonAsync("/orders", new { amountCents = 3, currency = "eur" });
 
