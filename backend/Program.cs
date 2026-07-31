@@ -102,8 +102,28 @@ app.UseCors("frontend");
 // single-container ("monolith") deploy the API and the SPA share one origin, so
 // there's no CORS and the frontend calls the API with a relative base URL.
 // In local dev there's no wwwroot, so these are no-ops and Vite serves the SPA.
+//
+// Cache policy is what makes deploys actually show up. Vite fingerprints the
+// files under /assets (index-<hash>.js/.css), so those are safe to cache forever
+// — a new build produces a new name. But index.html references those names and is
+// NOT fingerprinted, so it must be revalidated every load ("no-cache" = use the
+// cache only after the server confirms via ETag it's unchanged). Without this the
+// browser served a stale index.html that pointed at old asset hashes, so pushed
+// changes appeared to "not deploy". The same options are reused by the SPA
+// fallback below so deep-link reloads get the same fresh index.html.
+var spaCacheOptions = new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var path = ctx.Context.Request.Path.Value ?? "";
+        ctx.Context.Response.Headers.CacheControl =
+            path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase)
+                ? "public, max-age=31536000, immutable"
+                : "no-cache";
+    },
+};
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(spaCacheOptions);
 
 // Authenticate (read the cookie into HttpContext.User) then authorize (enforce
 // .RequireAuthorization on endpoints). Order matters: authentication first.
@@ -166,7 +186,7 @@ if (app.Environment.IsDevelopment())
 // SPA fallback: any request that didn't match an API route or a static file
 // returns index.html, so client-side routes (/checkout, /admin) work on reload.
 // Harmless in dev (no index.html present) since Vite serves the SPA there.
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html", spaCacheOptions);
 
 app.Run();
 
