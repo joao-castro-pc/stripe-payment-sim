@@ -1,26 +1,13 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Search, Star } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { listProducts, type Product } from '@/dummyjson'
 import { useCart } from '@/cart/CartContext'
 import { useCurrency } from '@/currency/CurrencyContext'
+import { Stars } from '@/components/Stars'
 import { Button } from '@/components/ui/button'
-
-// Five stars, filled up to the (rounded) rating. Decorative, so aria-hidden.
-function Stars({ rating }: { rating: number }) {
-  const full = Math.round(rating)
-  return (
-    <span className="flex items-center gap-0.5" aria-hidden="true">
-      {Array.from({ length: 5 }, (_, i) => (
-        <Star
-          key={i}
-          className={`size-3.5 ${i < full ? 'fill-amber-400 text-amber-400' : 'fill-muted text-muted'}`}
-        />
-      ))}
-    </span>
-  )
-}
 
 // The gold EMV chip from the brand mark — reused here so the hero reads as a card.
 function Chip({ className = '' }: { className?: string }) {
@@ -43,29 +30,35 @@ function ProductCard({ product }: { product: Product }) {
 
   return (
     <div className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg hover:ring-1 hover:ring-indigo-500/30">
-      <div className="relative aspect-square overflow-hidden bg-linear-to-b from-muted/50 to-muted">
-        <img
-          src={product.thumbnail}
-          alt={product.title}
-          loading="lazy"
-          className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-        />
-        {/* Category as a quiet mono eyebrow, floated on the image. */}
-        <span className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
-          {product.category}
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col p-4">
-        <h3 className="mb-1.5 line-clamp-2 text-sm font-medium text-card-foreground">{product.title}</h3>
-        <div className="flex items-center gap-1.5">
-          <Stars rating={product.rating} />
-          <span className="font-mono text-xs tabular-nums text-muted-foreground">{product.rating.toFixed(1)}</span>
+      {/* Image + info link to the product detail. The Add button lives OUTSIDE the
+          link so we don't nest interactive elements (a button inside an anchor). */}
+      <Link to={`/product/${product.id}`} className="flex flex-1 flex-col">
+        <div className="relative aspect-square overflow-hidden bg-linear-to-b from-muted/50 to-muted">
+          <img
+            src={product.thumbnail}
+            alt={product.title}
+            loading="lazy"
+            className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+          />
+          {/* Category as a quiet mono eyebrow, floated on the image. */}
+          <span className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+            {product.category}
+          </span>
         </div>
-        {/* Money + stock in monospace tabular figures — the "receipt" motif. */}
-        <div className="mb-3 mt-auto flex items-end justify-between pt-3">
-          <span className="font-mono text-lg font-semibold tabular-nums text-card-foreground">{format(product.price)}</span>
-          <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{product.stock} left</span>
+        <div className="flex flex-1 flex-col p-4 pb-0">
+          <h3 className="mb-1.5 line-clamp-2 text-sm font-medium text-card-foreground">{product.title}</h3>
+          <div className="flex items-center gap-1.5">
+            <Stars rating={product.rating} />
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">{product.rating.toFixed(1)}</span>
+          </div>
+          {/* Money + stock in monospace tabular figures — the "receipt" motif. */}
+          <div className="mb-3 mt-auto flex items-end justify-between pt-3">
+            <span className="font-mono text-lg font-semibold tabular-nums text-card-foreground">{format(product.price)}</span>
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{product.stock} left</span>
+          </div>
         </div>
+      </Link>
+      <div className="p-4 pt-0">
         <Button size="sm" className="w-full" onClick={addToCart}>
           Add to cart
         </Button>

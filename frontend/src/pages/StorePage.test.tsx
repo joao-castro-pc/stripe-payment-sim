@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import StorePage from './StorePage'
 import { CartProvider } from '@/cart/CartContext'
@@ -29,7 +30,9 @@ function renderStore() {
     <QueryClientProvider client={qc}>
       <CurrencyProvider>
         <CartProvider>
-          <StorePage />
+          <MemoryRouter>
+            <StorePage />
+          </MemoryRouter>
         </CartProvider>
       </CurrencyProvider>
     </QueryClientProvider>,

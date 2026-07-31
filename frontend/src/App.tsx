@@ -1,5 +1,6 @@
 import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import StorePage from './pages/StorePage'
+import ProductDetailPage from './pages/ProductDetailPage'
 import AdminPage from './pages/AdminPage'
 import OrderDetailPage from './pages/OrderDetailPage'
 import CheckoutPage from './pages/CheckoutPage'
@@ -89,6 +90,7 @@ export default function App() {
       <div key={location.pathname} className="animate-rise">
         <Routes location={location}>
           <Route path="/" element={<StorePage />} />
+          <Route path="/product/:id" element={<ProductDetailPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           {/* Buying requires any signed-in user; the admin dashboard requires an admin. */}

@@ -12,6 +12,11 @@ export interface Product {
   category: string
   stock: number
   rating: number
+  // Extra fields the single-product endpoint returns (the list carries them too,
+  // but we only rely on them on the detail page). Optional so the list type stays lean.
+  images?: string[]
+  brand?: string
+  discountPercentage?: number
 }
 
 // DummyJSON wraps the list in an envelope; we only care about `products`.
@@ -30,4 +35,11 @@ export async function listProducts(limit = 24): Promise<Product[]> {
   if (!res.ok) throw new Error(`DummyJSON products failed: ${res.status}`)
   const data: ProductsResponse = await res.json()
   return data.products
+}
+
+// One product in full (images gallery, brand, description) for the detail page.
+export async function getProduct(id: number | string): Promise<Product> {
+  const res = await fetch(`${BASE}/products/${id}`)
+  if (!res.ok) throw new Error(`DummyJSON product ${id} failed: ${res.status}`)
+  return res.json() as Promise<Product>
 }
