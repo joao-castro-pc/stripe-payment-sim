@@ -13,6 +13,7 @@ import { ThemeToggle } from './components/ThemeToggle'
 import { CurrencySelect } from './components/CurrencySelect'
 import { AccountMenu } from './components/AccountMenu'
 import { ScrollToTop } from './components/ScrollToTop'
+import { CartFab } from './components/CartFab'
 import { RequireAuth, RequireAdmin } from './components/RequireAuth'
 import { useAuth } from './auth/AuthContext'
 
@@ -85,7 +86,13 @@ export default function App() {
         </Routes>
       </div>
 
-      <ScrollToTop />
+      {/* Floating action stack, bottom-right. flex-col-reverse puts the first child
+          (the cart) closest to the thumb, with back-to-top above it. Each button
+          hides itself when not needed, so the stack collapses cleanly. */}
+      <div className="fixed bottom-5 right-5 z-40 flex flex-col-reverse items-end gap-3">
+        <CartFab />
+        <ScrollToTop />
+      </div>
     </div>
   )
 }

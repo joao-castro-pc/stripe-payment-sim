@@ -15,12 +15,12 @@ import {
 } from '@/components/ui/sheet'
 
 export function CartSheet() {
-  const { items, count, total, setQty, remove } = useCart()
+  const { items, count, total, setQty, remove, open, setOpen } = useCart()
   const { format } = useCurrency()
   const navigate = useNavigate()
 
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
       {/* asChild: render OUR button as the trigger instead of the default one. */}
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="relative gap-2">

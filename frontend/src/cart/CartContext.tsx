@@ -15,6 +15,10 @@ interface CartValue {
   setQty: (id: number, qty: number) => void
   remove: (id: number) => void
   clear: () => void
+  // Whether the cart drawer is open. Lifted here so more than one control (the nav
+  // button and the mobile floating button) can open the same single drawer.
+  open: boolean
+  setOpen: (open: boolean) => void
 }
 
 // React Context lets any component read the cart without passing props down
@@ -23,6 +27,7 @@ const CartContext = createContext<CartValue | null>(null)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  const [open, setOpen] = useState(false)
 
   // Add one unit: bump qty if the product is already in the cart, else append it.
   const add = (product: Product) =>
@@ -50,7 +55,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const count = items.reduce((n, i) => n + i.qty, 0)
   const total = items.reduce((sum, i) => sum + i.product.price * i.qty, 0)
 
-  const value: CartValue = { items, count, total, add, setQty, remove, clear }
+  const value: CartValue = { items, count, total, add, setQty, remove, clear, open, setOpen }
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
 
