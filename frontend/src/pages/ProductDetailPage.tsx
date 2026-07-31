@@ -104,7 +104,9 @@ export default function ProductDetailPage() {
                 ) : null}
               </div>
               <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+                {product.stock > 0
+                  ? (product.availabilityStatus ?? `${product.stock} in stock`)
+                  : 'Out of stock'}
               </span>
             </div>
 
@@ -117,6 +119,22 @@ export default function ProductDetailPage() {
             />
           </div>
         </div>
+
+        {(product.weight != null || product.dimensions || product.sku) && (
+          <section className="mt-14">
+            <h2 className="font-serif text-2xl text-foreground">Specifications</h2>
+            <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 sm:max-w-md">
+              {product.dimensions && (
+                <Spec
+                  label="Dimensions"
+                  value={`${product.dimensions.width.toFixed(1)} × ${product.dimensions.height.toFixed(1)} × ${product.dimensions.depth.toFixed(1)} cm`}
+                />
+              )}
+              {product.weight != null && <Spec label="Weight" value={`${product.weight} kg`} />}
+              {product.sku && <Spec label="SKU" value={product.sku} />}
+            </dl>
+          </section>
+        )}
 
         {product.reviews && product.reviews.length > 0 && (
           <section className="mt-14">
@@ -133,6 +151,15 @@ export default function ProductDetailPage() {
         </>
       )}
     </main>
+  )
+}
+
+function Spec({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 text-sm tabular-nums text-foreground">{value}</dd>
+    </div>
   )
 }
 

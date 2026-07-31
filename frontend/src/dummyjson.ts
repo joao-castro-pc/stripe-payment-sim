@@ -27,6 +27,11 @@ export interface Product {
   brand?: string
   discountPercentage?: number
   reviews?: Review[]
+  // Spec/stock details from the single-product endpoint.
+  sku?: string
+  weight?: number
+  dimensions?: { width: number; height: number; depth: number }
+  availabilityStatus?: string // e.g. "In Stock", "Low Stock"
 }
 
 // DummyJSON wraps every list in this envelope; `total` drives pagination.
