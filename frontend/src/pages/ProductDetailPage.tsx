@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ArrowLeft } from 'lucide-react'
@@ -15,6 +15,16 @@ export default function ProductDetailPage() {
   const { id = '' } = useParams()
   const { add } = useCart()
   const { format } = useCurrency()
+  const navigate = useNavigate()
+
+  // Go back the way the browser's back button would — so the store's active filter
+  // (in the URL) and its cached, scrolled-in pages are restored, instead of jumping
+  // to a fresh unfiltered store. Fall back to the store root when there's no history
+  // to pop (e.g. the product was opened via a direct link or a reload).
+  const backToStore = () => {
+    if (window.history.state?.idx > 0) navigate(-1)
+    else navigate('/')
+  }
 
   const { data: product, isPending, isError, error } = useQuery({
     queryKey: ['product', id],
@@ -28,8 +38,8 @@ export default function ProductDetailPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
-      <Button asChild variant="outline" size="sm" className="mb-4">
-        <Link to="/"><ArrowLeft className="size-4" /> Store</Link>
+      <Button variant="outline" size="sm" className="mb-4" onClick={backToStore}>
+        <ArrowLeft className="size-4" /> Store
       </Button>
 
       {isPending && <p className="font-mono text-sm text-muted-foreground">Loading product…</p>}
