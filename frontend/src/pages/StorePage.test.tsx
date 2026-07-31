@@ -78,6 +78,6 @@ describe('StorePage filtering', () => {
 
     await userEvent.type(screen.getByPlaceholderText(/search/i), 'zzznope')
 
-    expect(screen.getByText(/no products match/i)).toBeInTheDocument()
+    expect(screen.getByText(/nothing in the mix/i)).toBeInTheDocument()
   })
 })

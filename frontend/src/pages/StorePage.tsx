@@ -9,16 +9,6 @@ import { useCurrency } from '@/currency/CurrencyContext'
 import { Stars } from '@/components/Stars'
 import { Button } from '@/components/ui/button'
 
-// The gold EMV chip from the brand mark — reused here so the hero reads as a card.
-function Chip({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 24" className={className} aria-hidden="true">
-      <rect width="32" height="24" rx="4" fill="#facc15" />
-      <path d="M0 8h32M0 16h32M11 0v24M21 0v24" stroke="#a16207" strokeWidth="1" opacity="0.45" />
-    </svg>
-  )
-}
-
 function ProductCard({ product }: { product: Product }) {
   const { add } = useCart()
   const { format } = useCurrency()
@@ -29,37 +19,42 @@ function ProductCard({ product }: { product: Product }) {
   }
 
   return (
-    <div className="group flex flex-col overflow-hidden rounded-2xl border bg-card shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg hover:ring-1 hover:ring-indigo-500/30">
-      {/* Image + info link to the product detail. The Add button lives OUTSIDE the
-          link so we don't nest interactive elements (a button inside an anchor). */}
+    <div className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition duration-300 hover:-translate-y-1 hover:border-gold/40 hover:shadow-xl">
+      {/* Image + info link to the product detail. The Add button stays OUTSIDE the
+          link so we don't nest a button inside an anchor. */}
       <Link to={`/product/${product.id}`} className="flex flex-1 flex-col">
-        <div className="relative aspect-square overflow-hidden bg-linear-to-b from-muted/50 to-muted">
+        <div className="relative aspect-square overflow-hidden bg-linear-to-b from-muted/40 to-muted">
           <img
             src={product.thumbnail}
             alt={product.title}
             loading="lazy"
-            className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-contain p-6 transition-transform duration-500 group-hover:scale-105"
           />
-          {/* Category as a quiet mono eyebrow, floated on the image. */}
-          <span className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
+          {/* Category as a quiet mono eyebrow on a legible chip. */}
+          <span className="absolute left-3 top-3 rounded-full bg-background/70 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground backdrop-blur-sm">
             {product.category}
           </span>
         </div>
-        <div className="flex flex-1 flex-col p-4 pb-0">
-          <h3 className="mb-1.5 line-clamp-2 text-sm font-medium text-card-foreground">{product.title}</h3>
+        <div className="flex flex-1 flex-col gap-2 p-5 pb-0">
+          <h3 className="line-clamp-2 font-serif text-lg leading-snug text-card-foreground">{product.title}</h3>
           <div className="flex items-center gap-1.5">
             <Stars rating={product.rating} />
-            <span className="font-mono text-xs tabular-nums text-muted-foreground">{product.rating.toFixed(1)}</span>
+            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{product.rating.toFixed(1)}</span>
           </div>
-          {/* Money + stock in monospace tabular figures — the "receipt" motif. */}
-          <div className="mb-3 mt-auto flex items-end justify-between pt-3">
-            <span className="font-mono text-lg font-semibold tabular-nums text-card-foreground">{format(product.price)}</span>
-            <span className="font-mono text-[11px] tabular-nums text-muted-foreground">{product.stock} left</span>
+          {/* Price in the serif + gold — the one indulgent note; stock stays mono/quiet. */}
+          <div className="mt-auto flex items-baseline justify-between pt-2">
+            <span className="font-serif text-2xl text-gold">{format(product.price)}</span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{product.stock} in stock</span>
           </div>
         </div>
       </Link>
-      <div className="p-4 pt-0">
-        <Button size="sm" className="w-full" onClick={addToCart}>
+      <div className="p-5 pt-4">
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full border-gold/30 hover:border-gold hover:bg-gold/5"
+          onClick={addToCart}
+        >
           Add to cart
         </Button>
       </div>
@@ -72,7 +67,6 @@ export default function StorePage() {
     queryKey: ['products'],
     // Fetch the WHOLE catalog (DummyJSON: limit=0 returns all ~200 products) so
     // search and the category list cover everything, not just the first page.
-    // The catalog is static fake data, so cache it for a while.
     queryFn: () => listProducts(0),
     staleTime: 5 * 60_000,
   })
@@ -81,14 +75,11 @@ export default function StorePage() {
   const [query, setQuery] = useState('')
 
   // Distinct categories, derived from the fetched products (no extra request).
-  // useMemo: recompute only when `products` changes, not on every keystroke.
   const categories = useMemo(() => {
     if (!products) return []
     return Array.from(new Set(products.map((p) => p.category))).sort()
   }, [products])
 
-  // Apply both filters. Also memoized so typing/clicking doesn't re-scan the
-  // whole list on unrelated re-renders.
   const filtered = useMemo(() => {
     if (!products) return []
     const q = query.trim().toLowerCase()
@@ -101,58 +92,44 @@ export default function StorePage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      {/* Hero, styled as a payment card: chip + network mark up top, embossed name
-          in the middle, and the Stripe test-card number along the foot — the exact
-          card you use to check out. */}
-      <section className="relative mb-8 overflow-hidden rounded-3xl bg-linear-to-br from-indigo-600 via-indigo-600 to-violet-700 px-6 py-8 text-white shadow-lg sm:px-10 sm:py-10">
-        <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-3xl" />
-        <div className="relative flex min-h-45 flex-col gap-7 sm:min-h-50">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <Chip className="h-7 w-10 drop-shadow-sm" />
-              <span className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-indigo-200">
-                Fake store · Real Stripe
-              </span>
-            </div>
-            <span className="hidden font-mono text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200/90 sm:block">
-              PaymentSim
-            </span>
-          </div>
-
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">The PaymentSim Store</h1>
-            <p className="mt-2 max-w-xl text-sm text-indigo-100 sm:text-base">
-              Browse, add to cart, and check out with a test card — every order runs through a real
-              Stripe payment and webhook.
-            </p>
-          </div>
-
-          <div className="mt-auto flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-            <span className="font-mono text-lg tracking-[0.18em] tabular-nums sm:text-xl">4242 4242 4242 4242</span>
-            <div className="font-mono text-[10px] uppercase leading-4 tracking-[0.15em] text-indigo-200">
-              <div className="text-indigo-300/70">Valid thru</div>
-              <div>any date · any CVC</div>
-            </div>
-          </div>
+      {/* Hero: an editorial masthead. The couture serif wordmark carries the brand;
+          the mono test-card line underneath is the quiet truth that it's a Stripe
+          sandbox — that tension is the store's signature. */}
+      <section className="relative mb-10 overflow-hidden rounded-3xl border border-gold/15 bg-[#0e0d0b] px-6 py-14 text-center sm:px-12 sm:py-20">
+        <div className="pointer-events-none absolute -right-32 -top-32 size-96 rounded-full bg-gold/5 blur-3xl" />
+        <div className="relative mx-auto max-w-3xl">
+          <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-gold/80">
+            PaymentSim · Stripe test mode
+          </p>
+          <h1 className="mt-6 font-serif text-6xl font-light leading-[0.95] tracking-tight text-[#efe9dd] sm:text-8xl">
+            Mélange
+          </h1>
+          <p className="mx-auto mt-6 max-w-xl text-balance text-sm leading-relaxed text-[#b8b1a3] sm:text-base">
+            A curated mix of everything — beauty, home, the unexpected. Add to cart and
+            check out for real on Stripe, safely in test mode.
+          </p>
+          <div className="mx-auto mt-10 h-px w-24 bg-gold/40" />
+          <p className="mt-6 font-mono text-[11px] tracking-[0.2em] text-[#6f6a5e]">
+            4242&nbsp;4242&nbsp;4242&nbsp;4242 · ANY DATE · ANY CVC
+          </p>
         </div>
       </section>
 
-      {isPending && <p className="font-mono text-sm text-muted-foreground">Loading products…</p>}
+      {isPending && <p className="font-mono text-sm text-muted-foreground">Loading the collection…</p>}
       {isError && <p className="text-destructive">Error: {(error as Error).message}</p>}
 
       {products && (
         <>
-          {/* Search + category. ~24 categories as chips ate three rows, so the
-              category filter is a compact dropdown that sits beside the search. */}
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          {/* Search + category on one row (desktop). */}
+          <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative sm:max-w-md sm:flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search products…"
-                className="w-full rounded-xl border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                placeholder="Search the collection…"
+                className="w-full rounded-xl border border-input bg-background py-2.5 pl-9 pr-3 text-sm outline-none transition focus-visible:border-gold/60 focus-visible:ring-2 focus-visible:ring-gold/20"
               />
             </div>
 
@@ -160,7 +137,7 @@ export default function StorePage() {
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               aria-label="Category"
-              className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm capitalize text-foreground outline-none transition focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 sm:w-56"
+              className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm capitalize text-foreground outline-none transition focus-visible:border-gold/60 focus-visible:ring-2 focus-visible:ring-gold/20 sm:w-56"
             >
               <option value="all">All categories</option>
               {categories.map((c) => (
@@ -171,15 +148,15 @@ export default function StorePage() {
             </select>
           </div>
 
-          {/* Result count in mono — small "data" detail. */}
-          <p className="mb-4 font-mono text-xs tabular-nums text-muted-foreground">
-            {filtered.length} {filtered.length === 1 ? 'product' : 'products'}
+          {/* Piece count — boutique vernacular, in the quiet mono. */}
+          <p className="mb-5 font-mono text-xs tabular-nums text-muted-foreground">
+            {filtered.length} {filtered.length === 1 ? 'piece' : 'pieces'}
           </p>
 
           {filtered.length === 0 ? (
-            <p className="py-12 text-center text-sm text-muted-foreground">No products match your filters.</p>
+            <p className="py-16 text-center font-serif text-lg text-muted-foreground">Nothing in the mix matches your search.</p>
           ) : (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-5">
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
               {filtered.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

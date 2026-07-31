@@ -68,7 +68,7 @@ export default function ProductDetailPage() {
             <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
               {product.category}
             </span>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">{product.title}</h1>
+            <h1 className="mt-1 font-serif text-3xl leading-tight tracking-tight text-foreground">{product.title}</h1>
             {product.brand && <p className="mt-0.5 text-sm text-muted-foreground">by {product.brand}</p>}
 
             <div className="mt-3 flex items-center gap-2">
@@ -79,7 +79,7 @@ export default function ProductDetailPage() {
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{product.description}</p>
 
             <div className="mt-6 flex items-end justify-between">
-              <span className="font-mono text-3xl font-bold tabular-nums text-foreground">{format(product.price)}</span>
+              <span className="font-serif text-4xl text-gold">{format(product.price)}</span>
               <span className="font-mono text-xs tabular-nums text-muted-foreground">
                 {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
               </span>

@@ -29,7 +29,7 @@ function NavTab({ to, children }: { to: string; children: React.ReactNode }) {
       // NavLink passes { isActive } so we can highlight the current tab.
       className={({ isActive }) =>
         `rounded-md px-2 py-1.5 text-sm font-medium transition sm:px-3 ${
-          isActive ? 'bg-indigo-600 text-white' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          isActive ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
         }`
       }
     >

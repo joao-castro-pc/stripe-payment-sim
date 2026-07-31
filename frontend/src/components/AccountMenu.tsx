@@ -43,7 +43,7 @@ export function AccountMenu() {
       <DropdownMenuTrigger asChild>
         <button
           aria-label="Account menu"
-          className="grid size-9 shrink-0 place-items-center rounded-full bg-indigo-600 text-xs font-semibold text-white transition hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground text-xs font-semibold text-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           {initials(user)}
         </button>
