@@ -1,4 +1,4 @@
-import { Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import StorePage from './pages/StorePage'
 import AdminPage from './pages/AdminPage'
 import CheckoutPage from './pages/CheckoutPage'
@@ -62,6 +62,8 @@ function AuthControls() {
 
 export default function App() {
   const { isAdmin } = useAuth()
+  // Re-mounts the routed content on every navigation so it fades up into place.
+  const location = useLocation()
 
   return (
     <div className="min-h-screen bg-background">
@@ -83,14 +85,16 @@ export default function App() {
         </nav>
       </header>
 
-      <Routes>
-        <Route path="/" element={<StorePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        {/* Buying requires any signed-in user; the admin dashboard requires an admin. */}
-        <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
-        <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
-      </Routes>
+      <div key={location.pathname} className="animate-rise">
+        <Routes location={location}>
+          <Route path="/" element={<StorePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          {/* Buying requires any signed-in user; the admin dashboard requires an admin. */}
+          <Route path="/checkout" element={<RequireAuth><CheckoutPage /></RequireAuth>} />
+          <Route path="/admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
+        </Routes>
+      </div>
     </div>
   )
 }

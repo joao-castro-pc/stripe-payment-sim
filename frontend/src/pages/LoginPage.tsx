@@ -10,8 +10,8 @@ export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  // Where to go after login: back to the page that bounced us here, else /admin.
-  const from = (location.state as { from?: string } | null)?.from ?? '/admin'
+  // Where to go after login: back to the page that bounced us here, else the store.
+  const from = (location.state as { from?: string } | null)?.from ?? '/'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

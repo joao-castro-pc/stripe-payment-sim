@@ -160,3 +160,26 @@
   animation-name: toast-exit-left !important;
   animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.3);
 }
+
+/* Gentle entrance: fade up. Used per-route (keyed on the path) and on hero/cards
+   so navigating and loading feels smooth rather than snapping into place. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+.animate-rise {
+  animation: rise 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+}
+/* Small stagger helpers so a row of items cascades in instead of arriving at once. */
+.animate-rise-1 { animation: rise 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) both; animation-delay: 0.05s; }
+.animate-rise-2 { animation: rise 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) both; animation-delay: 0.1s; }
+
+/* Respect users who ask for less motion: no entrance animation, no toast slide. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-rise-1,
+  .animate-rise-2,
+  [data-sonner-toast] {
+    animation: none !important;
+  }
+}
