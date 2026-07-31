@@ -115,9 +115,16 @@ var spaCacheOptions = new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
     {
-        var path = ctx.Context.Request.Path.Value ?? "";
+        // Immutable caching is safe ONLY for the fingerprinted asset files. Decide
+        // on BOTH the request path AND the file actually served: the SPA fallback
+        // returns index.html for any unmatched route — including a bogus
+        // /assets/whatever — so keying on the path alone would stamp index.html
+        // with a 1-year immutable cache under an /assets URL (a cache-poisoning
+        // foot-gun). Requiring the served file to not be index.html closes that.
+        var underAssets = ctx.Context.Request.Path.StartsWithSegments("/assets");
+        var isIndex = ctx.File.Name.Equals("index.html", StringComparison.OrdinalIgnoreCase);
         ctx.Context.Response.Headers.CacheControl =
-            path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase)
+            underAssets && !isIndex
                 ? "public, max-age=31536000, immutable"
                 : "no-cache";
     },
