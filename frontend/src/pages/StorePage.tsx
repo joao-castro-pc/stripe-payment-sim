@@ -51,7 +51,7 @@ function ProductCard({ product }: { product: Product }) {
           className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
         />
         {/* Category as a quiet mono eyebrow, floated on the image. */}
-        <span className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground capitalize backdrop-blur-sm">
+        <span className="absolute left-3 top-3 rounded-full bg-background/80 px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur-sm">
           {product.category}
         </span>
       </div>
@@ -113,7 +113,7 @@ export default function StorePage() {
           card you use to check out. */}
       <section className="relative mb-8 overflow-hidden rounded-3xl bg-linear-to-br from-indigo-600 via-indigo-600 to-violet-700 px-6 py-8 text-white shadow-lg sm:px-10 sm:py-10">
         <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-3xl" />
-        <div className="relative flex min-h-[180px] flex-col gap-7 sm:min-h-[200px]">
+        <div className="relative flex min-h-45 flex-col gap-7 sm:min-h-50">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Chip className="h-7 w-10 drop-shadow-sm" />
